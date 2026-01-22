@@ -1,0 +1,104 @@
+{
+  "name": "one-keyvault-ui",
+  "displayName": "One Key Vault UI",
+  "publisher": "your-publisher-id",
+  "description": "Azure Key Vault explorer with inline secret editing capabilities",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.98.2"
+  },
+  "categories": [
+    "Azure"
+  ],
+  "activationEvents": [
+    "onCommand:oneKeyVault.openKeyVaultView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "oneKeyVault.openKeyVaultView",
+        "title": "Open Key Vault UI",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "oneKeyVault.addKeyVault",
+        "title": "Add Key Vault",
+        "icon": "$(add)"
+      },
+      {
+        "command": "oneKeyVault.removeKeyVault",
+        "title": "Remove Key Vault",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "oneKeyVault.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "oneKeyVault.refresh",
+          "when": "view == oneKeyVaultTree",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "oneKeyVault.removeKeyVault",
+          "when": "viewItem == keyVault",
+          "group": "inline"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "oneKeyVaultContainer",
+          "title": "Azure Key Vault",
+          "icon": "$(cloud)"
+        }
+      ]
+    },
+    "views": {
+      "oneKeyVaultContainer": [
+        {
+          "id": "oneKeyVaultTree",
+          "name": "Key Vaults",
+          "type": "tree"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "pretest": "npm run compile && npm run lint",
+    "test": "node ./out/test/runTest.js",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^3.2.1",
+    "standard-version": "^9.5.0"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.0.0",
+    "@azure/keyvault-secrets": "^4.7.0"
+  }
+}
