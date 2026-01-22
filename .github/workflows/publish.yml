@@ -27,12 +27,12 @@ jobs:
         run: npm run vscode:prepublish
 
       - name: Package extension
-        run: npx vsce package --no-dependencies -o one-keyvault-ui.vsix
+        run: npx @vscode/vsce package --no-dependencies -o one-keyvault-ui.vsix
 
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish --pat "$VSCE_PAT"
+        run: npx @vscode/vsce publish --pat "$VSCE_PAT"
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
