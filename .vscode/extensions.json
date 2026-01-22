@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "ms-vscode.azure-account",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint"
+  ]
+}
