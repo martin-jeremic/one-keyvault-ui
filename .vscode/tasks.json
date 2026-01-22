@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: watch",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "esbuild-watch"
+      ],
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\s].*?)\\((\\d+|\\d+,\\d+|\\d+,\\d+,\\d+,\\d+)\\):\\s+error.*$",
+          "file": 1,
+          "location": 2
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*\\$?\\s*.*(?:watch|listening).*",
+          "endsPattern": "^\\s*\\$?\\s*.*(?:^|\\r?\\n)(?:let|var)?\\s+\\w+\\s*="
+        }
+      }
+    },
+    {
+      "label": "npm: compile",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "compile"
+      ]
+    },
+    {
+      "label": "npm: build",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "vscode:prepublish"
+      ]
+    }
+  ]
+}
