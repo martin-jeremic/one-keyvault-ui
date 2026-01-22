@@ -1,5 +1,5 @@
-import { SecretClient } from '@azure/keyvault-secrets';
-import { DefaultAzureCredential } from '@azure/identity';
+import { SecretClient } from "@azure/keyvault-secrets";
+import { VisualStudioCodeCredential } from "@azure/identity";
 
 export interface Secret {
   name: string;
@@ -19,21 +19,27 @@ export interface SecretsPage {
 
 export class KeyVaultManager {
   private secretClients: Map<string, SecretClient> = new Map();
-  private credential: DefaultAzureCredential;
+  private credential: VisualStudioCodeCredential;
   private allSecretsCache: Map<string, Secret[]> = new Map();
 
   constructor() {
-    this.credential = new DefaultAzureCredential();
+    // Visual Studio Code sign-in keeps auth aligned with the Azure Account extension and supports multi-tenant use by default.
+    this.credential = new VisualStudioCodeCredential();
   }
 
   private getSecretClient(vaultUrl: string): SecretClient {
     if (!this.secretClients.has(vaultUrl)) {
-      this.secretClients.set(vaultUrl, new SecretClient(vaultUrl, this.credential));
+      this.secretClients.set(
+        vaultUrl,
+        new SecretClient(vaultUrl, this.credential),
+      );
     }
     return this.secretClients.get(vaultUrl)!;
   }
 
-  async getAvailableKeyVaults(): Promise<Array<{ name: string; vaultUrl: string }>> {
+  async getAvailableKeyVaults(): Promise<
+    Array<{ name: string; vaultUrl: string }>
+  > {
     try {
       // Note: This is a placeholder. In a real scenario, you'd need to query Azure Resource Manager
       // to get the list of key vaults the user has access to.
@@ -44,7 +50,11 @@ export class KeyVaultManager {
     }
   }
 
-  async getSecrets(vaultUrl: string, page: number = 0, pageSize: number = 10): Promise<SecretsPage> {
+  async getSecrets(
+    vaultUrl: string,
+    page: number = 0,
+    pageSize: number = 10,
+  ): Promise<SecretsPage> {
     try {
       const client = this.getSecretClient(vaultUrl);
       const allSecrets: Secret[] = [];
@@ -55,7 +65,7 @@ export class KeyVaultManager {
         const secret = await client.getSecret(secretProperties.name);
         allSecrets.push({
           name: secretProperties.name,
-          value: secret.value || '',
+          value: secret.value || "",
           enabled: secretProperties.enabled ?? true,
           created: secretProperties.createdOn,
           updated: secretProperties.updatedOn,
@@ -83,7 +93,11 @@ export class KeyVaultManager {
     }
   }
 
-  async updateSecret(vaultUrl: string, secretName: string, secretValue: string): Promise<void> {
+  async updateSecret(
+    vaultUrl: string,
+    secretName: string,
+    secretValue: string,
+  ): Promise<void> {
     try {
       const client = this.getSecretClient(vaultUrl);
       await client.setSecret(secretName, secretValue);

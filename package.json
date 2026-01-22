@@ -1,6 +1,7 @@
 {
   "name": "one-keyvault-ui",
   "displayName": "One Key Vault UI",
+  "publisher": "your-publisher-id",
   "description": "Azure Key Vault explorer with inline secret editing capabilities",
   "version": "0.0.1",
   "engines": {
@@ -89,7 +90,8 @@
     "@typescript-eslint/parser": "^6.0.0",
     "esbuild": "^0.19.0",
     "eslint": "^8.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vsce": "^2.24.0"
   },
   "dependencies": {
     "@azure/identity": "^4.0.0",
