@@ -40,10 +40,14 @@ jobs:
         run: npm run vscode:prepublish
 
       - name: Package extension
-        run: npx @vscode/vsce package --no-dependencies -o one-keyvault-ui.vsix
+        run: npx @vscode/vsce package --no-dependencies
+
+      - name: Get package version
+        id: package-version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: one-keyvault-ui
-          path: one-keyvault-ui.vsix
+          name: one-keyvault-ui-${{ steps.package-version.outputs.VERSION }}
+          path: one-keyvault-ui-${{ steps.package-version.outputs.VERSION }}.vsix
