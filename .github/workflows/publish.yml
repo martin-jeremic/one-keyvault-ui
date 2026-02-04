@@ -1,45 +1,59 @@
-name: Publish VS Code Extension
+name: CD - Release & Publish
 
 on:
-  workflow_dispatch:
-
-permissions:
-  contents: read
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
 
 jobs:
-  publish:
+  release:
+    name: Semantic Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: write
     environment: marketplace
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Check out repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24.13.0
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build extension bundle
-        run: npm run vscode:prepublish
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx semantic-release
 
-      - name: Package extension
-        run: npx @vscode/vsce package --no-dependencies
+      - name: Read package version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Get package version
-        id: package-version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Package VSIX
+        run: npx vsce package -o one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
 
-      - name: Publish to Visual Studio Marketplace
+      - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx @vscode/vsce publish --pat "$VSCE_PAT"
+        run: npx vsce publish -p "$VSCE_PAT" --packagePath one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: one-keyvault-ui-${{ steps.package-version.outputs.VERSION }}
-          path: one-keyvault-ui-${{ steps.package-version.outputs.VERSION }}.vsix
+          name: one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
+          path: one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix

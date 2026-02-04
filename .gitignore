@@ -137,3 +137,13 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Development and setup files
+DEVELOPMENT_SETUP.md
+ARCHITECTURE.md
+COMPLETED.md
+DEVELOPMENT.md
+INDEX.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+SETUP.md

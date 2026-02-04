@@ -12,64 +12,6 @@ Azure Key Vault explorer extension for VS Code with inline secret editing capabi
 - 🗑️ **Delete secrets** - Remove secrets from the vault
 - 👁️ **Toggle secret visibility** - Reveal/hide secret values for security
 
-## Installation
-
-### From Source
-
-1. Clone or download this repository
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Build the extension:
-
-```bash
-npm run esbuild
-```
-
-4. Package the extension (requires `vsce`):
-
-```bash
-npm install -g vsce
-vsce package
-```
-
-5. Install in VS Code:
-   - Go to Extensions (Ctrl+Shift+X)
-   - Click the "..." menu
-   - Select "Install from VSIX..."
-   - Choose the generated `.vsix` file
-
-## Development
-
-### Prerequisites
-
-- Node.js 16+
-- npm or yarn
-- Azure CLI or VS Code Azure extension for authentication
-
-### Watch Mode
-
-For continuous development:
-
-```bash
-npm run esbuild-watch
-```
-
-### Run Extension
-
-1. Open the project in VS Code
-2. Press `F5` to launch the extension in a new window
-3. The extension will be loaded with the latest code
-
-### Debug
-
-- Set breakpoints in the source code
-- Use VS Code's Debug console and variables inspector
-- Check the Extension Host output for logs
-
 ## Usage
 
 ### Adding a Key Vault
@@ -177,19 +119,6 @@ Your Azure account needs the following permissions on the Key Vault:
 
 These are typically available with the "Key Vault Administrator" or "Key Vault Secrets Officer" roles.
 
-## Configuration
-
-The extension stores Key Vault URLs in VS Code's global settings (encrypted). No additional configuration is needed.
-
-### Clear All Stored Vaults
-
-To reset and clear all stored vaults:
-
-1. Open Command Palette (Ctrl+Shift+P)
-2. Type: `Developer: Set Context`
-3. Search for `oneKeyVault.vaults` in settings
-4. Clear the stored data
-
 ## Security Notes
 
 ⚠️ **Important Security Considerations:**
@@ -268,16 +197,6 @@ Planned features for future versions:
 - [ ] Scheduled secret rotation alerts
 - [ ] Integration with GitHub Secrets
 
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit changes: `git commit -am 'Add my feature'`
-4. Push to branch: `git push origin feature/my-feature`
-5. Submit a Pull Request
-
 ## License
 
 MIT License - see LICENSE file for details
@@ -285,15 +204,3 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues, bugs, or feature requests, please open an issue on GitHub.
-
-## Changelog
-
-### v0.0.1 (Initial Release)
-
-- Initial release with basic Key Vault connection
-- Secret listing with pagination
-- Search, sort, and filter capabilities
-- Inline secret editing
-- Secret deletion
-- Add/remove vaults
-- Secret visibility toggle
