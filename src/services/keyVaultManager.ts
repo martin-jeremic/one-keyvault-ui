@@ -1,5 +1,12 @@
 import { SecretClient } from "@azure/keyvault-secrets";
-import { VisualStudioCodeCredential } from "@azure/identity";
+import {
+  VisualStudioCodeCredential,
+  ClientSecretCredential,
+  ChainedTokenCredential,
+  CredentialUnavailableError,
+  TokenCredential,
+} from "@azure/identity";
+import * as vscode from "vscode";
 
 export interface Secret {
   name: string;
@@ -17,14 +24,91 @@ export interface SecretsPage {
   hasMore: boolean;
 }
 
+export interface ServicePrincipalCreds {
+  tenantId: string;
+  clientId: string;
+  clientSecret: string;
+}
+
 export class KeyVaultManager {
   private secretClients: Map<string, SecretClient> = new Map();
-  private credential: VisualStudioCodeCredential;
+  private credential: TokenCredential;
   private allSecretsCache: Map<string, Secret[]> = new Map();
+  private spCreds: ServicePrincipalCreds | null = null;
+  private secretStorage: vscode.SecretStorage | null = null;
 
-  constructor() {
-    // Visual Studio Code sign-in keeps auth aligned with the Azure Account extension and supports multi-tenant use by default.
+  constructor(secretStorage?: vscode.SecretStorage) {
+    this.secretStorage = secretStorage || null;
+    // Initialize with VS Code credential; will be replaced if SP creds are available
     this.credential = new VisualStudioCodeCredential();
+    this.initializeCredential();
+  }
+
+  private initializeCredential(): void {
+    try {
+      const credentials: TokenCredential[] = [new VisualStudioCodeCredential()];
+
+      // Load SP credentials if available
+      this.loadServicePrincipalCreds();
+
+      if (this.spCreds) {
+        const spCredential = new ClientSecretCredential(
+          this.spCreds.tenantId,
+          this.spCreds.clientId,
+          this.spCreds.clientSecret,
+        );
+        credentials.push(spCredential);
+      }
+
+      if (credentials.length > 1) {
+        this.credential = new ChainedTokenCredential(...credentials);
+      } else {
+        this.credential = credentials[0];
+      }
+    } catch (error) {
+      console.error("Failed to initialize credential:", error);
+    }
+  }
+
+  private loadServicePrincipalCreds(): void {
+    // Load from memory or storage if available
+    // This will be populated when user enters credentials
+  }
+
+  async setServicePrincipalCreds(creds: ServicePrincipalCreds): Promise<void> {
+    this.spCreds = creds;
+
+    // Store in VS Code secret storage if available
+    if (this.secretStorage) {
+      try {
+        await this.secretStorage.store(
+          "oneKeyVault.spCreds",
+          JSON.stringify(creds),
+        );
+      } catch (error) {
+        console.error("Failed to store SP credentials:", error);
+      }
+    }
+
+    // Reinitialize credential with new SP creds
+    this.initializeCredential();
+
+    // Clear cached clients as credential has changed
+    this.secretClients.clear();
+  }
+
+  async loadStoredServicePrincipalCreds(): Promise<void> {
+    if (!this.secretStorage) return;
+
+    try {
+      const stored = await this.secretStorage.get("oneKeyVault.spCreds");
+      if (stored) {
+        this.spCreds = JSON.parse(stored);
+        this.initializeCredential();
+      }
+    } catch (error) {
+      console.error("Failed to load stored SP credentials:", error);
+    }
   }
 
   private getSecretClient(vaultUrl: string): SecretClient {
@@ -62,11 +146,16 @@ export class KeyVaultManager {
       // Fetch all secrets (with pagination from API)
       const secretsIterator = client.listPropertiesOfSecrets();
       for await (const secretProperties of secretsIterator) {
-        const secret = await client.getSecret(secretProperties.name);
+        const enabled = secretProperties.enabled ?? true;
+        let value = "";
+        if (enabled) {
+          const secret = await client.getSecret(secretProperties.name);
+          value = secret.value || "";
+        }
         allSecrets.push({
           name: secretProperties.name,
-          value: secret.value || "",
-          enabled: secretProperties.enabled ?? true,
+          value,
+          enabled,
           created: secretProperties.createdOn,
           updated: secretProperties.updatedOn,
         });
@@ -75,20 +164,33 @@ export class KeyVaultManager {
       // Cache the secrets
       this.allSecretsCache.set(vaultUrl, allSecrets);
 
-      // Calculate pagination
       const total = allSecrets.length;
-      const start = page * pageSize;
-      const end = start + pageSize;
-      const paginatedSecrets = allSecrets.slice(start, end);
 
       return {
-        secrets: paginatedSecrets,
+        secrets: allSecrets,
         total,
         page,
         pageSize,
-        hasMore: end < total,
+        hasMore: false,
       };
     } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      // Check if this is a credential unavailable error
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        // Prompt user to enter SP credentials
+        await this.promptForServicePrincipalCreds();
+
+        // Retry with new credentials
+        return this.getSecrets(vaultUrl, page, pageSize);
+      }
+
       throw new Error(`Failed to get secrets: ${error}`);
     }
   }
@@ -105,6 +207,23 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      // Check if this is a credential unavailable error
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        // Prompt user to enter SP credentials
+        await this.promptForServicePrincipalCreds();
+
+        // Retry with new credentials
+        return this.updateSecret(vaultUrl, secretName, secretValue);
+      }
+
       throw new Error(`Failed to update secret: ${error}`);
     }
   }
@@ -118,7 +237,109 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      // Check if this is a credential unavailable error
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        // Prompt user to enter SP credentials
+        await this.promptForServicePrincipalCreds();
+
+        // Retry with new credentials
+        return this.deleteSecret(vaultUrl, secretName);
+      }
+
       throw new Error(`Failed to delete secret: ${error}`);
     }
+  }
+
+  async setSecretEnabled(
+    vaultUrl: string,
+    secretName: string,
+    enabled: boolean,
+    value?: string,
+  ): Promise<void> {
+    try {
+      const client = this.getSecretClient(vaultUrl);
+      if (enabled) {
+        if (value === undefined) {
+          throw new Error("Secret value required to enable a disabled secret.");
+        }
+        await client.setSecret(secretName, value, { enabled: true });
+      } else {
+        const current = await client.getSecret(secretName);
+        const currentValue = current.value ?? "";
+        await client.setSecret(secretName, currentValue, { enabled: false });
+      }
+
+      // Invalidate cache
+      this.allSecretsCache.delete(vaultUrl);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        await this.promptForServicePrincipalCreds();
+        return this.setSecretEnabled(vaultUrl, secretName, enabled, value);
+      }
+
+      throw new Error(`Failed to update secret: ${error}`);
+    }
+  }
+
+  private async promptForServicePrincipalCreds(): Promise<void> {
+    const tenantId = await vscode.window.showInputBox({
+      prompt: "Enter Azure Tenant ID",
+      ignoreFocusOut: true,
+      password: false,
+      placeHolder: "e.g., 00000000-0000-0000-0000-000000000000",
+    });
+
+    if (!tenantId) {
+      throw new Error("Tenant ID is required");
+    }
+
+    const clientId = await vscode.window.showInputBox({
+      prompt: "Enter Service Principal Client ID (Application ID)",
+      ignoreFocusOut: true,
+      password: false,
+      placeHolder: "e.g., 00000000-0000-0000-0000-000000000000",
+    });
+
+    if (!clientId) {
+      throw new Error("Client ID is required");
+    }
+
+    const clientSecret = await vscode.window.showInputBox({
+      prompt: "Enter Service Principal Client Secret",
+      ignoreFocusOut: true,
+      password: true,
+      placeHolder: "Enter your client secret",
+    });
+
+    if (!clientSecret) {
+      throw new Error("Client Secret is required");
+    }
+
+    // Save the credentials
+    await this.setServicePrincipalCreds({
+      tenantId,
+      clientId,
+      clientSecret,
+    });
+
+    vscode.window.showInformationMessage(
+      "Service Principal credentials saved and will be used for authentication.",
+    );
   }
 }

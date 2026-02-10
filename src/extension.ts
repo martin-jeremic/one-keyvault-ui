@@ -14,8 +14,12 @@ export async function activate(context: vscode.ExtensionContext) {
     // Load stored vaults from VS Code settings
     loadStoredVaults(context);
 
-    // Initialize services
-    keyVaultManager = new KeyVaultManager();
+    // Initialize services with secret storage for secure credential storage
+    keyVaultManager = new KeyVaultManager(context.secrets);
+
+    // Load any stored service principal credentials
+    await keyVaultManager.loadStoredServicePrincipalCreds();
+
     treeProvider = new KeyVaultTreeProvider(keyVaultManager, storedVaults);
 
     // Register tree view provider
@@ -24,7 +28,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register webview panel serializer for secrets view
     vscode.window.registerWebviewPanelSerializer(
       "oneKeyVaultSecrets",
-      new SecretsWebViewProvider(keyVaultManager, treeProvider),
+      new SecretsWebViewProvider(context.extensionUri),
     );
 
     // Command: Add Key Vault
@@ -119,12 +123,14 @@ export async function activate(context: vscode.ExtensionContext) {
           {
             enableScripts: true,
             retainContextWhenHidden: true,
+            localResourceRoots: [
+              vscode.Uri.joinPath(context.extensionUri, "media"),
+            ],
           },
         );
 
         const webviewProvider = new SecretsWebViewProvider(
-          keyVaultManager,
-          treeProvider,
+          context.extensionUri,
         );
         panel.webview.html = webviewProvider.getSecretsView(
           panel.webview,
@@ -173,6 +179,139 @@ export async function activate(context: vscode.ExtensionContext) {
                 panel.webview.postMessage({
                   command: "error",
                   message: `Failed to update secret: ${error}`,
+                });
+              }
+              break;
+
+            case "requestEditSecret":
+              try {
+                const nextValue = await vscode.window.showInputBox({
+                  prompt: `Enter new value for "${message.secretName}"`,
+                  ignoreFocusOut: true,
+                  password: true,
+                });
+                if (nextValue === undefined) {
+                  break;
+                }
+                await keyVaultManager.updateSecret(
+                  treeItem.vaultUrl,
+                  message.secretName,
+                  nextValue,
+                );
+                panel.webview.postMessage({
+                  command: "secretUpdated",
+                  secretName: message.secretName,
+                });
+                vscode.window.showInformationMessage(
+                  `Secret "${message.secretName}" updated successfully`,
+                );
+              } catch (error) {
+                panel.webview.postMessage({
+                  command: "error",
+                  message: `Failed to update secret: ${error}`,
+                });
+              }
+              break;
+
+            case "requestDeleteSecret":
+              try {
+                const choice = await vscode.window.showWarningMessage(
+                  `Delete secret "${message.secretName}"?`,
+                  { modal: true },
+                  "Delete",
+                );
+                if (choice !== "Delete") {
+                  break;
+                }
+                await keyVaultManager.deleteSecret(
+                  treeItem.vaultUrl,
+                  message.secretName,
+                );
+                panel.webview.postMessage({
+                  command: "secretDeleted",
+                  secretName: message.secretName,
+                });
+                vscode.window.showInformationMessage(
+                  `Secret "${message.secretName}" deleted successfully`,
+                );
+              } catch (error) {
+                panel.webview.postMessage({
+                  command: "error",
+                  message: `Failed to delete secret: ${error}`,
+                });
+              }
+              break;
+
+            case "requestToggleEnabled":
+              try {
+                const nextEnabled = !message.enabled;
+                let nextValue: string | undefined;
+                if (nextEnabled) {
+                  nextValue = await vscode.window.showInputBox({
+                    prompt: `Enter value to enable "${message.secretName}"`,
+                    ignoreFocusOut: true,
+                    password: true,
+                  });
+                  if (nextValue === undefined) {
+                    break;
+                  }
+                }
+                await keyVaultManager.setSecretEnabled(
+                  treeItem.vaultUrl,
+                  message.secretName,
+                  nextEnabled,
+                  nextValue,
+                );
+                panel.webview.postMessage({
+                  command: "secretUpdated",
+                  secretName: message.secretName,
+                });
+                vscode.window.showInformationMessage(
+                  `Secret "${message.secretName}" ${
+                    nextEnabled ? "enabled" : "disabled"
+                  } successfully`,
+                );
+              } catch (error) {
+                panel.webview.postMessage({
+                  command: "error",
+                  message: `Failed to update secret: ${error}`,
+                });
+              }
+              break;
+
+            case "requestCreateSecret":
+              try {
+                const name = await vscode.window.showInputBox({
+                  prompt: "Enter secret name",
+                  ignoreFocusOut: true,
+                });
+                if (!name) {
+                  break;
+                }
+                const value = await vscode.window.showInputBox({
+                  prompt: `Enter value for "${name}"`,
+                  ignoreFocusOut: true,
+                  password: true,
+                });
+                if (value === undefined) {
+                  break;
+                }
+                await keyVaultManager.updateSecret(
+                  treeItem.vaultUrl,
+                  name,
+                  value,
+                );
+                panel.webview.postMessage({
+                  command: "secretUpdated",
+                  secretName: name,
+                });
+                vscode.window.showInformationMessage(
+                  `Secret "${name}" created successfully`,
+                );
+              } catch (error) {
+                panel.webview.postMessage({
+                  command: "error",
+                  message: `Failed to create secret: ${error}`,
                 });
               }
               break;
