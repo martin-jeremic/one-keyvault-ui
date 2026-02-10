@@ -12,8 +12,12 @@ export interface Secret {
   name: string;
   value: string;
   enabled: boolean;
+  id?: string;
   created?: Date;
   updated?: Date;
+  notBefore?: Date;
+  expiresOn?: Date;
+  tags?: Record<string, string>;
 }
 
 export interface SecretsPage {
@@ -156,8 +160,12 @@ export class KeyVaultManager {
           name: secretProperties.name,
           value,
           enabled,
+          id: secretProperties.id,
           created: secretProperties.createdOn,
           updated: secretProperties.updatedOn,
+          notBefore: secretProperties.notBefore,
+          expiresOn: secretProperties.expiresOn,
+          tags: secretProperties.tags,
         });
       }
 
@@ -291,6 +299,58 @@ export class KeyVaultManager {
       ) {
         await this.promptForServicePrincipalCreds();
         return this.setSecretEnabled(vaultUrl, secretName, enabled, value);
+      }
+
+      throw new Error(`Failed to update secret: ${error}`);
+    }
+  }
+
+  async updateSecretProperties(
+    vaultUrl: string,
+    secretName: string,
+    properties: {
+      notBefore?: Date | null;
+      expiresOn?: Date | null;
+      tags?: Record<string, string>;
+    },
+  ): Promise<void> {
+    try {
+      const client = this.getSecretClient(vaultUrl);
+      if (properties.tags !== undefined) {
+        const current = await client.getSecret(secretName);
+        const currentValue = current.value ?? "";
+        await client.setSecret(secretName, currentValue, {
+          tags: properties.tags,
+          notBefore: properties.notBefore ?? current.properties.notBefore,
+          expiresOn: properties.expiresOn ?? current.properties.expiresOn,
+          enabled: current.properties.enabled,
+        });
+      } else {
+        const updatePayload: Record<string, unknown> = {};
+        if (properties.notBefore !== undefined) {
+          updatePayload.notBefore = properties.notBefore;
+        }
+        if (properties.expiresOn !== undefined) {
+          updatePayload.expiresOn = properties.expiresOn;
+        }
+
+        await client.updateSecretProperties(secretName, updatePayload as any);
+      }
+
+      // Invalidate cache
+      this.allSecretsCache.delete(vaultUrl);
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        await this.promptForServicePrincipalCreds();
+        return this.updateSecretProperties(vaultUrl, secretName, properties);
       }
 
       throw new Error(`Failed to update secret: ${error}`);

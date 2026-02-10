@@ -316,6 +316,43 @@ export async function activate(context: vscode.ExtensionContext) {
               }
               break;
 
+            case "requestUpdateSecretProperties":
+              try {
+                const props = message.properties || {};
+                const notBefore =
+                  props.notBefore === null
+                    ? null
+                    : props.notBefore
+                      ? new Date(props.notBefore)
+                      : undefined;
+                const expiresOn =
+                  props.expiresOn === null
+                    ? null
+                    : props.expiresOn
+                      ? new Date(props.expiresOn)
+                      : undefined;
+
+                await keyVaultManager.updateSecretProperties(
+                  treeItem.vaultUrl,
+                  message.secretName,
+                  {
+                    notBefore,
+                    expiresOn,
+                    tags: props.tags,
+                  },
+                );
+                panel.webview.postMessage({
+                  command: "secretUpdated",
+                  secretName: message.secretName,
+                });
+              } catch (error) {
+                panel.webview.postMessage({
+                  command: "error",
+                  message: `Failed to update secret: ${error}`,
+                });
+              }
+              break;
+
             case "deleteSecret":
               try {
                 await keyVaultManager.deleteSecret(

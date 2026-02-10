@@ -24,8 +24,34 @@ export class SecretsWebViewProvider implements vscode.WebviewPanelSerializer {
       "secretsView.html",
     );
     const html = fs.readFileSync(htmlPath.fsPath, "utf8");
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secretsView.js"),
+    const stateScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "state.js"),
+    );
+    const domScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "dom.js"),
+    );
+    const formatScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "format.js"),
+    );
+    const templatesScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this.extensionUri,
+        "media",
+        "secrets",
+        "templates.js",
+      ),
+    );
+    const renderScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "render.js"),
+    );
+    const actionsScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "actions.js"),
+    );
+    const eventsScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "events.js"),
+    );
+    const mainScriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "main.js"),
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "media", "secretsView.css"),
@@ -37,7 +63,14 @@ export class SecretsWebViewProvider implements vscode.WebviewPanelSerializer {
       .replace(/{{nonce}}/g, nonce)
       .replace("{{csp}}", csp)
       .replace("{{styleUri}}", styleUri.toString())
-      .replace("{{scriptUri}}", scriptUri.toString())
+      .replace("{{stateScriptUri}}", stateScriptUri.toString())
+      .replace("{{domScriptUri}}", domScriptUri.toString())
+      .replace("{{formatScriptUri}}", formatScriptUri.toString())
+      .replace("{{templatesScriptUri}}", templatesScriptUri.toString())
+      .replace("{{renderScriptUri}}", renderScriptUri.toString())
+      .replace("{{actionsScriptUri}}", actionsScriptUri.toString())
+      .replace("{{eventsScriptUri}}", eventsScriptUri.toString())
+      .replace("{{mainScriptUri}}", mainScriptUri.toString())
       .replace("{{state}}", state);
   }
 }
