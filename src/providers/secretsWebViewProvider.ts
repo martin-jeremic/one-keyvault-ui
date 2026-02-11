@@ -60,7 +60,7 @@ export class SecretsWebViewProvider implements vscode.WebviewPanelSerializer {
       vscode.Uri.joinPath(this.extensionUri, "media", "secretsView.css"),
     );
     const csp = `default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; connect-src ${webview.cspSource};`;
-    const state = JSON.stringify({ vaultUrl });
+    const state = encodeURIComponent(JSON.stringify({ vaultUrl }));
 
     return html
       .replace(/{{nonce}}/g, nonce)

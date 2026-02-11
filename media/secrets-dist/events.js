@@ -1,6 +1,7 @@
 import { dom } from "./dom.js";
 import { filterAndDisplay, showLoading, showMessage, updateSortUI, } from "./render.js";
-import { deleteSecret, editSecret, loadSecrets, requestCreateSecret, toggleEnabled, updateSecretProperties, } from "./actions.js";
+import { deleteSecret, editSecret, loadSecrets, requestCreateSecret, requestSecretDetails, toggleEnabled, updateSecretProperties, } from "./actions.js";
+import { renderTagRowHtml } from "./templates.js";
 import { state } from "./state.js";
 export function bindEvents() {
     dom.searchInput.addEventListener("input", filterAndDisplay);
@@ -119,6 +120,10 @@ function toggleDetails(secretName) {
     }
     else {
         state.expandedSecretName = secretName;
+        const secret = state.allSecrets.find((s) => s.name === secretName);
+        if (secret && !secret.detailsLoaded) {
+            requestSecretDetails(secretName);
+        }
     }
     filterAndDisplay();
 }
@@ -177,13 +182,7 @@ function addTagRow(secretName) {
         '"] .tags');
     if (!tagsContainer)
         return;
-    const row = document.createElement("div");
-    row.className = "tag-row";
-    row.innerHTML =
-        '<input class="tag-input" type="text" data-role="tagKey" placeholder="key">' +
-            '<input class="tag-input" type="text" data-role="tagValue" placeholder="value">' +
-            '<button class="button-secondary tag-remove" data-action="removeTag">Remove</button>';
-    tagsContainer.appendChild(row);
+    tagsContainer.insertAdjacentHTML("beforeend", renderTagRowHtml("", ""));
 }
 function removeTagRow(button) {
     const row = button.closest(".tag-row");
@@ -293,12 +292,32 @@ function onWindowMessage(event) {
     const message = event.data;
     switch (message.command) {
         case "secretsLoaded":
-            state.allSecrets = message.data?.secrets || [];
+            state.allSecrets = (message.data?.secrets || []).map((secret) => ({
+                ...secret,
+                detailsLoaded: false,
+            }));
             state.totalSecrets = message.data?.total ?? state.allSecrets.length;
             state.currentPage = message.page || 0;
             updateSortUI();
             filterAndDisplay();
             break;
+        case "secretDetailsLoaded": {
+            const details = message.data?.details;
+            if (message.secretName && details) {
+                const target = state.allSecrets.find((secret) => secret.name === message.secretName);
+                if (target) {
+                    target.id = details.id;
+                    target.notBefore = details.notBefore;
+                    target.expiresOn = details.expiresOn;
+                    target.tags = details.tags;
+                    target.detailsLoaded = true;
+                    if (state.expandedSecretName === target.name) {
+                        filterAndDisplay();
+                    }
+                }
+            }
+            break;
+        }
         case "secretUpdated":
             showMessage("Secret '" + message.secretName + "' updated successfully", "success");
             loadSecrets();

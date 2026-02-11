@@ -10,9 +10,11 @@ import {
   editSecret,
   loadSecrets,
   requestCreateSecret,
+  requestSecretDetails,
   toggleEnabled,
   updateSecretProperties,
 } from "./actions.js";
+import { renderTagRowHtml } from "./templates.js";
 import { state } from "./state.js";
 import type { DetailsState, Draft, Secret } from "./types.js";
 
@@ -134,6 +136,10 @@ function toggleDetails(secretName: string): void {
     delete state.editsBySecretName[secretName];
   } else {
     state.expandedSecretName = secretName;
+    const secret = state.allSecrets.find((s) => s.name === secretName);
+    if (secret && !secret.detailsLoaded) {
+      requestSecretDetails(secretName);
+    }
   }
   filterAndDisplay();
 }
@@ -204,13 +210,7 @@ function addTagRow(secretName: string): void {
       '"] .tags',
   );
   if (!tagsContainer) return;
-  const row = document.createElement("div");
-  row.className = "tag-row";
-  row.innerHTML =
-    '<input class="tag-input" type="text" data-role="tagKey" placeholder="key">' +
-    '<input class="tag-input" type="text" data-role="tagValue" placeholder="value">' +
-    '<button class="button-secondary tag-remove" data-action="removeTag">Remove</button>';
-  tagsContainer.appendChild(row);
+  tagsContainer.insertAdjacentHTML("beforeend", renderTagRowHtml("", ""));
 }
 
 function removeTagRow(button: HTMLElement): void {
@@ -334,18 +334,49 @@ function onWindowMessage(event: MessageEvent): void {
   const message = event.data as {
     command?: string;
     secretName?: string;
-    data?: { secrets?: Secret[]; total?: number };
+    data?: {
+      secrets?: Secret[];
+      total?: number;
+      details?: {
+        id?: string;
+        notBefore?: string | Date | null;
+        expiresOn?: string | Date | null;
+        tags?: Record<string, string>;
+      };
+    };
     page?: number;
     message?: string;
   };
   switch (message.command) {
     case "secretsLoaded":
-      state.allSecrets = message.data?.secrets || [];
+      state.allSecrets = (message.data?.secrets || []).map((secret) => ({
+        ...secret,
+        detailsLoaded: false,
+      }));
       state.totalSecrets = message.data?.total ?? state.allSecrets.length;
       state.currentPage = message.page || 0;
       updateSortUI();
       filterAndDisplay();
       break;
+    case "secretDetailsLoaded": {
+      const details = message.data?.details;
+      if (message.secretName && details) {
+        const target = state.allSecrets.find(
+          (secret) => secret.name === message.secretName,
+        );
+        if (target) {
+          target.id = details.id;
+          target.notBefore = details.notBefore;
+          target.expiresOn = details.expiresOn;
+          target.tags = details.tags;
+          target.detailsLoaded = true;
+          if (state.expandedSecretName === target.name) {
+            filterAndDisplay();
+          }
+        }
+      }
+      break;
+    }
     case "secretUpdated":
       showMessage(
         "Secret '" + message.secretName + "' updated successfully",

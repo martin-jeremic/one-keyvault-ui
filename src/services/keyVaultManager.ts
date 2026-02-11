@@ -160,12 +160,8 @@ export class KeyVaultManager {
           name: secretProperties.name,
           value,
           enabled,
-          id: secretProperties.id,
           created: secretProperties.createdOn,
           updated: secretProperties.updatedOn,
-          notBefore: secretProperties.notBefore,
-          expiresOn: secretProperties.expiresOn,
-          tags: secretProperties.tags,
         });
       }
 
@@ -363,6 +359,48 @@ export class KeyVaultManager {
       }
 
       throw new Error(`Failed to update secret: ${error}`);
+    }
+  }
+
+  async getSecretDetails(
+    vaultUrl: string,
+    secretName: string,
+  ): Promise<{
+    id?: string;
+    notBefore?: Date;
+    expiresOn?: Date;
+    tags?: Record<string, string>;
+  }> {
+    try {
+      const client = this.getSecretClient(vaultUrl);
+      const iterator = client.listPropertiesOfSecrets();
+      for await (const props of iterator) {
+        if (props.name === secretName) {
+          return {
+            id: props.id,
+            notBefore: props.notBefore,
+            expiresOn: props.expiresOn,
+            tags: props.tags,
+          };
+        }
+      }
+
+      throw new Error("Secret not found in Key Vault.");
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+
+      if (
+        error instanceof CredentialUnavailableError ||
+        errorMessage.includes("CredentialUnavailableError") ||
+        errorMessage.includes(
+          "Visual Studio Code Authentication is not available",
+        )
+      ) {
+        await this.promptForServicePrincipalCreds();
+        return this.getSecretDetails(vaultUrl, secretName);
+      }
+
+      throw new Error(`Failed to get secret details: ${error}`);
     }
   }
 

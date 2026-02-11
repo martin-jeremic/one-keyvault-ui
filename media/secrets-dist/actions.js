@@ -40,3 +40,9 @@ export function updateSecretProperties(secretName, properties) {
         properties,
     });
 }
+export function requestSecretDetails(secretName) {
+    vscode.postMessage({
+        command: "requestSecretDetails",
+        secretName,
+    });
+}

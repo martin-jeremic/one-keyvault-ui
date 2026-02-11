@@ -72,6 +72,9 @@ export class SecretsWebviewController {
       case "requestUpdateSecretProperties":
         await this.handleUpdateSecretProperties(panel, vaultUrl, message);
         break;
+      case "requestSecretDetails":
+        await this.handleRequestSecretDetails(panel, vaultUrl, message);
+        break;
       case "deleteSecret":
         await this.handleDeleteSecret(panel, vaultUrl, message);
         break;
@@ -286,6 +289,27 @@ export class SecretsWebviewController {
       });
     } catch (error) {
       this.postError(panel, error, "Failed to update secret");
+    }
+  }
+
+  private async handleRequestSecretDetails(
+    panel: vscode.WebviewPanel,
+    vaultUrl: string,
+    message: WebviewMessage,
+  ): Promise<void> {
+    if (!message.secretName) return;
+    try {
+      const details = await this.keyVaultManager.getSecretDetails(
+        vaultUrl,
+        message.secretName,
+      );
+      panel.webview.postMessage({
+        command: "secretDetailsLoaded",
+        secretName: message.secretName,
+        data: { details },
+      });
+    } catch (error) {
+      this.postError(panel, error, "Failed to load secret details");
     }
   }
 

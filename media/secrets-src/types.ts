@@ -12,6 +12,7 @@ export interface Secret {
   notBefore?: string | Date | null;
   expiresOn?: string | Date | null;
   tags?: Record<string, string>;
+  detailsLoaded?: boolean;
 }
 
 export interface Draft {

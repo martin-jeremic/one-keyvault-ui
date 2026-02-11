@@ -40,20 +40,26 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: npx semantic-release
 
-      - name: Read package version
-        id: pkg
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: one-keyvault-ui-*.vsix
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          path: .
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package VSIX
-        run: npx vsce package -o one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
+      - name: Resolve VSIX path
+        id: vsix
+        run: echo "path=$(ls one-keyvault-ui-*.vsix | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx vsce publish -p "$VSCE_PAT" --packagePath one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
+        run: npx vsce publish -p "$VSCE_PAT" --packagePath ${{ steps.vsix.outputs.path }}
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
-          path: one-keyvault-ui-${{ steps.pkg.outputs.version }}.vsix
+          name: ${{ steps.vsix.outputs.path }}
+          path: ${{ steps.vsix.outputs.path }}

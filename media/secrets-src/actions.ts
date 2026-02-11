@@ -51,3 +51,10 @@ export function updateSecretProperties(
     properties,
   });
 }
+
+export function requestSecretDetails(secretName: string): void {
+  vscode.postMessage({
+    command: "requestSecretDetails",
+    secretName,
+  });
+}
