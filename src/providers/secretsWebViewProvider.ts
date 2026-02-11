@@ -6,7 +6,7 @@ export class SecretsWebViewProvider implements vscode.WebviewPanelSerializer {
 
   async deserializeWebviewPanel(
     webviewPanel: vscode.WebviewPanel,
-    state: any,
+    state: { vaultUrl?: string } | undefined,
   ): Promise<void> {
     if (state && state.vaultUrl) {
       webviewPanel.webview.html = this.getSecretsView(
@@ -24,53 +24,52 @@ export class SecretsWebViewProvider implements vscode.WebviewPanelSerializer {
       "secretsView.html",
     );
     const html = fs.readFileSync(htmlPath.fsPath, "utf8");
-    const stateScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "state.js"),
-    );
-    const domScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "dom.js"),
-    );
-    const formatScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "format.js"),
-    );
-    const templatesScriptUri = webview.asWebviewUri(
+    const mainScriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.extensionUri,
         "media",
-        "secrets",
-        "templates.js",
+        "secrets-dist",
+        "main.js",
       ),
     );
-    const renderScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "render.js"),
+    const secretRowTemplateUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this.extensionUri,
+        "media",
+        "templates",
+        "secretRow.html",
+      ),
     );
-    const actionsScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "actions.js"),
+    const detailsRowTemplateUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this.extensionUri,
+        "media",
+        "templates",
+        "detailsRow.html",
+      ),
     );
-    const eventsScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "events.js"),
-    );
-    const mainScriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, "media", "secrets", "main.js"),
+    const tagRowTemplateUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this.extensionUri,
+        "media",
+        "templates",
+        "tagRow.html",
+      ),
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "media", "secretsView.css"),
     );
-    const csp = `default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';`;
+    const csp = `default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; connect-src ${webview.cspSource};`;
     const state = JSON.stringify({ vaultUrl });
 
     return html
       .replace(/{{nonce}}/g, nonce)
       .replace("{{csp}}", csp)
       .replace("{{styleUri}}", styleUri.toString())
-      .replace("{{stateScriptUri}}", stateScriptUri.toString())
-      .replace("{{domScriptUri}}", domScriptUri.toString())
-      .replace("{{formatScriptUri}}", formatScriptUri.toString())
-      .replace("{{templatesScriptUri}}", templatesScriptUri.toString())
-      .replace("{{renderScriptUri}}", renderScriptUri.toString())
-      .replace("{{actionsScriptUri}}", actionsScriptUri.toString())
-      .replace("{{eventsScriptUri}}", eventsScriptUri.toString())
       .replace("{{mainScriptUri}}", mainScriptUri.toString())
+      .replace("{{secretRowTemplateUri}}", secretRowTemplateUri.toString())
+      .replace("{{detailsRowTemplateUri}}", detailsRowTemplateUri.toString())
+      .replace("{{tagRowTemplateUri}}", tagRowTemplateUri.toString())
       .replace("{{state}}", state);
   }
 }

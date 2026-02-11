@@ -1,0 +1,36 @@
+<td colspan="6">
+    <div class="details-container">
+        <div class="details-section">
+            <div class="details-label">Secret Identifier</div>
+            <div class="details-value">{{escapedId}}</div>
+        </div>
+        <div class="details-grid">
+            <label class="details-field">
+                <input type="checkbox" data-role="notBeforeEnabled" data-secret-name="{{encodedName}}"
+                    {{notBeforeChecked}}>
+                Activation Date
+            </label>
+            <input type="datetime-local" data-role="notBefore" data-secret-name="{{encodedName}}"
+                value="{{notBeforeValue}}" {{notBeforeDisabled}}>
+            <label class="details-field">
+                <input type="checkbox" data-role="expiresOnEnabled" data-secret-name="{{encodedName}}"
+                    {{expiresOnChecked}}>
+                Expiration Date
+            </label>
+            <input type="datetime-local" data-role="expiresOn" data-secret-name="{{encodedName}}"
+                value="{{expiresOnValue}}" {{expiresOnDisabled}}>
+        </div>
+        <div class="details-section">
+            <div class="details-label">Tags</div>
+            <div class="tags" data-secret-name="{{encodedName}}">{{tagsHtml}}</div>
+            <div class="details-actions">
+                <button class="button-secondary tag-add" data-action="addTag" data-secret-name="{{encodedName}}">Add
+                    Tag</button>
+                <button class="button-secondary" data-action="cancelDetails"
+                    data-secret-name="{{encodedName}}">Cancel</button>
+                <button class="button-primary" data-action="saveDetails"
+                    data-secret-name="{{encodedName}}">Save</button>
+            </div>
+        </div>
+    </div>
+</td>

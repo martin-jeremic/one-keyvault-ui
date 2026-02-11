@@ -326,15 +326,24 @@ export class KeyVaultManager {
           enabled: current.properties.enabled,
         });
       } else {
-        const updatePayload: Record<string, unknown> = {};
+        const updatePayload: {
+          notBefore?: Date;
+          expiresOn?: Date;
+        } = {};
         if (properties.notBefore !== undefined) {
-          updatePayload.notBefore = properties.notBefore;
+          updatePayload.notBefore =
+            properties.notBefore === null ? undefined : properties.notBefore;
         }
         if (properties.expiresOn !== undefined) {
-          updatePayload.expiresOn = properties.expiresOn;
+          updatePayload.expiresOn =
+            properties.expiresOn === null ? undefined : properties.expiresOn;
         }
-
-        await client.updateSecretProperties(secretName, updatePayload as any);
+        const current = await client.getSecret(secretName);
+        const version = current.properties.version;
+        if (!version) {
+          throw new Error("Secret version not found for update.");
+        }
+        await client.updateSecretProperties(secretName, version, updatePayload);
       }
 
       // Invalidate cache
