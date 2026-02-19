@@ -1,7 +1,7 @@
 {
   "name": "one-keyvault-ui",
   "displayName": "One Key Vault UI",
-  "publisher": "your-publisher-id",
+  "publisher": "onedevteam",
   "description": "Azure Key Vault explorer with inline secret editing capabilities",
   "version": "0.0.1",
   "engines": {
