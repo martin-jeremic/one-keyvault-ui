@@ -40,6 +40,10 @@ export class SecretsWebviewController {
       vaultUrl,
     );
 
+    panel.onDidDispose(() => {
+      this.keyVaultManager.clearSessionClientSecret();
+    });
+
     panel.webview.onDidReceiveMessage((message: WebviewMessage) => {
       this.handleMessage(panel, vaultUrl, message);
     });

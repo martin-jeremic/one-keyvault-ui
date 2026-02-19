@@ -13,7 +13,7 @@ export async function activate(context: vscode.ExtensionContext) {
   try {
     const storedVaults = loadStoredVaults(context);
     const keyVaultManager = new KeyVaultManager(context.secrets);
-    await keyVaultManager.loadStoredServicePrincipalCreds();
+    await keyVaultManager.loadStoredServicePrincipalInfo();
 
     const treeProvider = new KeyVaultTreeProvider(
       keyVaultManager,
@@ -69,10 +69,38 @@ export async function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage("Invalid key vault selected");
           return;
         }
+        try {
+          await keyVaultManager.ensureSessionSecretForOpen();
+        } catch (error) {
+          vscode.window.showErrorMessage(String(error));
+          return;
+        }
         webviewController.openPanel(treeItem.label, treeItem.vaultUrl);
       },
     );
     context.subscriptions.push(openSecretsCommand);
+
+    const clearCredsCommand = vscode.commands.registerCommand(
+      "oneKeyVault.clearStoredCredentials",
+      async (item: KeyVaultItem) => {
+        if (!item || item.isAddButton) {
+          return;
+        }
+        const confirmed = await vscode.window.showWarningMessage(
+          `Clear stored credentials for "${item.label}"?`,
+          { modal: true },
+          "Clear",
+        );
+        if (confirmed !== "Clear") {
+          return;
+        }
+        await keyVaultManager.clearStoredServicePrincipalInfo();
+        vscode.window.showInformationMessage(
+          "Stored credentials cleared. You'll be prompted next time.",
+        );
+      },
+    );
+    context.subscriptions.push(clearCredsCommand);
 
     // Set context for showing the view
     vscode.commands.executeCommand("setContext", "oneKeyVault:ready", true);

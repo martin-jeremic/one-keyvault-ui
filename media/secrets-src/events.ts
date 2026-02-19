@@ -116,7 +116,7 @@ function onTableChange(event: Event): void {
 
 function toggleVisibility(secretName: string): void {
   const safeName = window.CSS.escape(encodeURIComponent(secretName));
-  const selector = '[data-secret-name="' + safeName + '"]';
+  const selector = '.secret-value[data-secret-name="' + safeName + '"]';
   const element = document.querySelector(selector);
   if (!element) return;
   if (element.classList.contains("masked")) {

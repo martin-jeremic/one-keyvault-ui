@@ -97,7 +97,7 @@ function onTableChange(event) {
 }
 function toggleVisibility(secretName) {
     const safeName = window.CSS.escape(encodeURIComponent(secretName));
-    const selector = '[data-secret-name="' + safeName + '"]';
+    const selector = '.secret-value[data-secret-name="' + safeName + '"]';
     const element = document.querySelector(selector);
     if (!element)
         return;

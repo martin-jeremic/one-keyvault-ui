@@ -28,17 +28,17 @@ export interface SecretsPage {
   hasMore: boolean;
 }
 
-export interface ServicePrincipalCreds {
+export interface ServicePrincipalInfo {
   tenantId: string;
   clientId: string;
-  clientSecret: string;
 }
 
 export class KeyVaultManager {
   private secretClients: Map<string, SecretClient> = new Map();
   private credential: TokenCredential;
   private allSecretsCache: Map<string, Secret[]> = new Map();
-  private spCreds: ServicePrincipalCreds | null = null;
+  private spInfo: ServicePrincipalInfo | null = null;
+  private sessionClientSecret: string | null = null;
   private secretStorage: vscode.SecretStorage | null = null;
 
   constructor(secretStorage?: vscode.SecretStorage) {
@@ -52,14 +52,14 @@ export class KeyVaultManager {
     try {
       const credentials: TokenCredential[] = [new VisualStudioCodeCredential()];
 
-      // Load SP credentials if available
-      this.loadServicePrincipalCreds();
+      // Load SP info if available
+      this.loadServicePrincipalInfo();
 
-      if (this.spCreds) {
+      if (this.spInfo && this.sessionClientSecret) {
         const spCredential = new ClientSecretCredential(
-          this.spCreds.tenantId,
-          this.spCreds.clientId,
-          this.spCreds.clientSecret,
+          this.spInfo.tenantId,
+          this.spInfo.clientId,
+          this.sessionClientSecret,
         );
         credentials.push(spCredential);
       }
@@ -74,45 +74,100 @@ export class KeyVaultManager {
     }
   }
 
-  private loadServicePrincipalCreds(): void {
+  private loadServicePrincipalInfo(): void {
     // Load from memory or storage if available
     // This will be populated when user enters credentials
   }
 
-  async setServicePrincipalCreds(creds: ServicePrincipalCreds): Promise<void> {
-    this.spCreds = creds;
+  async setServicePrincipalInfo(info: ServicePrincipalInfo): Promise<void> {
+    this.spInfo = info;
 
-    // Store in VS Code secret storage if available
     if (this.secretStorage) {
       try {
         await this.secretStorage.store(
-          "oneKeyVault.spCreds",
-          JSON.stringify(creds),
+          "oneKeyVault.spInfo",
+          JSON.stringify(info),
         );
       } catch (error) {
-        console.error("Failed to store SP credentials:", error);
+        console.error("Failed to store SP info:", error);
       }
     }
-
-    // Reinitialize credential with new SP creds
-    this.initializeCredential();
-
-    // Clear cached clients as credential has changed
-    this.secretClients.clear();
   }
 
-  async loadStoredServicePrincipalCreds(): Promise<void> {
+  async loadStoredServicePrincipalInfo(): Promise<void> {
     if (!this.secretStorage) return;
 
     try {
-      const stored = await this.secretStorage.get("oneKeyVault.spCreds");
-      if (stored) {
-        this.spCreds = JSON.parse(stored);
-        this.initializeCredential();
+      const storedInfo = await this.secretStorage.get("oneKeyVault.spInfo");
+      if (storedInfo) {
+        this.spInfo = JSON.parse(storedInfo);
+        return;
+      }
+
+      const legacyStored = await this.secretStorage.get("oneKeyVault.spCreds");
+      if (legacyStored) {
+        const legacy = JSON.parse(legacyStored) as {
+          tenantId?: string;
+          clientId?: string;
+        };
+        if (legacy.tenantId && legacy.clientId) {
+          this.spInfo = {
+            tenantId: legacy.tenantId,
+            clientId: legacy.clientId,
+          };
+          await this.secretStorage.store(
+            "oneKeyVault.spInfo",
+            JSON.stringify(this.spInfo),
+          );
+        }
+        await this.secretStorage.delete("oneKeyVault.spCreds");
       }
     } catch (error) {
-      console.error("Failed to load stored SP credentials:", error);
+      console.error("Failed to load stored SP info:", error);
     }
+  }
+
+  async clearStoredServicePrincipalInfo(): Promise<void> {
+    this.spInfo = null;
+    if (this.secretStorage) {
+      try {
+        await this.secretStorage.delete("oneKeyVault.spInfo");
+        await this.secretStorage.delete("oneKeyVault.spCreds");
+      } catch (error) {
+        console.error("Failed to delete stored SP info:", error);
+      }
+    }
+    this.clearSessionClientSecret();
+  }
+
+  setSessionClientSecret(secret: string): void {
+    this.sessionClientSecret = secret;
+    this.initializeCredential();
+    this.secretClients.clear();
+  }
+
+  clearSessionClientSecret(): void {
+    this.sessionClientSecret = null;
+    this.initializeCredential();
+    this.secretClients.clear();
+  }
+
+  async ensureSessionSecretForOpen(): Promise<void> {
+    if (!this.spInfo) {
+      return;
+    }
+    const clientSecret = await vscode.window.showInputBox({
+      prompt: "Enter Service Principal Client Secret",
+      ignoreFocusOut: true,
+      password: true,
+      placeHolder: "Enter your client secret",
+    });
+
+    if (!clientSecret) {
+      throw new Error("Client Secret is required to open Key Vault.");
+    }
+
+    this.setSessionClientSecret(clientSecret);
   }
 
   private getSecretClient(vaultUrl: string): SecretClient {
@@ -189,9 +244,10 @@ export class KeyVaultManager {
         )
       ) {
         // Prompt user to enter SP credentials
-        await this.promptForServicePrincipalCreds();
+        // Prompt only during initial open
+        await this.promptForServicePrincipalInfo();
+        await this.ensureSessionSecretForOpen();
 
-        // Retry with new credentials
         return this.getSecrets(vaultUrl, page, pageSize);
       }
 
@@ -221,11 +277,9 @@ export class KeyVaultManager {
           "Visual Studio Code Authentication is not available",
         )
       ) {
-        // Prompt user to enter SP credentials
-        await this.promptForServicePrincipalCreds();
-
-        // Retry with new credentials
-        return this.updateSecret(vaultUrl, secretName, secretValue);
+        throw new Error(
+          "Credentials required. Re-open the Key Vault to enter credentials.",
+        );
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -251,11 +305,9 @@ export class KeyVaultManager {
           "Visual Studio Code Authentication is not available",
         )
       ) {
-        // Prompt user to enter SP credentials
-        await this.promptForServicePrincipalCreds();
-
-        // Retry with new credentials
-        return this.deleteSecret(vaultUrl, secretName);
+        throw new Error(
+          "Credentials required. Re-open the Key Vault to enter credentials.",
+        );
       }
 
       throw new Error(`Failed to delete secret: ${error}`);
@@ -293,8 +345,9 @@ export class KeyVaultManager {
           "Visual Studio Code Authentication is not available",
         )
       ) {
-        await this.promptForServicePrincipalCreds();
-        return this.setSecretEnabled(vaultUrl, secretName, enabled, value);
+        throw new Error(
+          "Credentials required. Re-open the Key Vault to enter credentials.",
+        );
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -354,8 +407,9 @@ export class KeyVaultManager {
           "Visual Studio Code Authentication is not available",
         )
       ) {
-        await this.promptForServicePrincipalCreds();
-        return this.updateSecretProperties(vaultUrl, secretName, properties);
+        throw new Error(
+          "Credentials required. Re-open the Key Vault to enter credentials.",
+        );
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -396,15 +450,16 @@ export class KeyVaultManager {
           "Visual Studio Code Authentication is not available",
         )
       ) {
-        await this.promptForServicePrincipalCreds();
-        return this.getSecretDetails(vaultUrl, secretName);
+        throw new Error(
+          "Credentials required. Re-open the Key Vault to enter credentials.",
+        );
       }
 
       throw new Error(`Failed to get secret details: ${error}`);
     }
   }
 
-  private async promptForServicePrincipalCreds(): Promise<void> {
+  private async promptForServicePrincipalInfo(): Promise<void> {
     const tenantId = await vscode.window.showInputBox({
       prompt: "Enter Azure Tenant ID",
       ignoreFocusOut: true,
@@ -427,26 +482,10 @@ export class KeyVaultManager {
       throw new Error("Client ID is required");
     }
 
-    const clientSecret = await vscode.window.showInputBox({
-      prompt: "Enter Service Principal Client Secret",
-      ignoreFocusOut: true,
-      password: true,
-      placeHolder: "Enter your client secret",
-    });
-
-    if (!clientSecret) {
-      throw new Error("Client Secret is required");
-    }
-
-    // Save the credentials
-    await this.setServicePrincipalCreds({
-      tenantId,
-      clientId,
-      clientSecret,
-    });
+    await this.setServicePrincipalInfo({ tenantId, clientId });
 
     vscode.window.showInformationMessage(
-      "Service Principal credentials saved and will be used for authentication.",
+      "Service Principal details saved. You'll be prompted for the secret when opening a Key Vault.",
     );
   }
 }
