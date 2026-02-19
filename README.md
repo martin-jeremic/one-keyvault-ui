@@ -84,29 +84,51 @@ Example:
 
 ## Authentication
 
-The extension uses Azure Identity for authentication. Make sure you have one of the following configured:
+The extension currently supports these authentication options:
 
-### Option 1: Azure CLI (Recommended for local development)
+### Option 1: VS Code sign-in (Visual Studio Code Credential)
+
+Sign in to Azure in VS Code, then open the Key Vault from the tree view.
+
+### Option 2: Service Principal (prompted by extension)
+
+If VS Code sign-in is unavailable, the extension prompts for:
+
+- Tenant ID
+- Client ID (Application ID)
+- Client Secret (requested per session when opening a Key Vault)
+
+Create and grant a service principal with Azure CLI:
 
 ```bash
-az login
+# 1) Create service principal (save appId, password, tenant from output)
+az ad sp create-for-rbac --name "<your-keyvault-name>" --skip-assignment
+
+# 2) Set variables from step 1 output + your vault name
+APP_ID="<appId>"
+TENANT_ID="<tenant>"
+CLIENT_SECRET="<password>"
+VAULT_NAME="<your-keyvault-name>"
+
+# 3) Resolve SP object ID and Key Vault scope
+SP_OBJECT_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
+SCOPE=$(az keyvault show --name "$VAULT_NAME" --query id -o tsv)
+
+# 4) Assign least-privilege role for secrets operations
+az role assignment create \
+   --assignee-object-id "$SP_OBJECT_ID" \
+   --assignee-principal-type ServicePrincipal \
+   --role "Key Vault Secrets Officer" \
+   --scope "$SCOPE"
 ```
 
-### Option 2: VS Code Azure Extension
+Use these values in the extension prompts:
 
-Install the [Azure Account](https://marketplace.visualstudio.com/items?itemName=ms-vscode.azure-account) extension and sign in.
+- Tenant ID: `$TENANT_ID`
+- Client ID: `$APP_ID`
+- Client Secret: `$CLIENT_SECRET`
 
-### Option 3: Environment Variables (Service Principal)
-
-```bash
-export AZURE_CLIENT_ID=your-client-id
-export AZURE_CLIENT_SECRET=your-client-secret
-export AZURE_TENANT_ID=your-tenant-id
-```
-
-### Option 4: Managed Identity (Azure VMs/Container Apps)
-
-Automatically available when running on Azure resources.
+The extension stores only Tenant ID and Client ID in VS Code secret storage.
 
 ## Permissions Required
 
