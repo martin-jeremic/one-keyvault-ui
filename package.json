@@ -35,6 +35,11 @@
         "command": "oneKeyVault.refresh",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "oneKeyVault.clearStoredCredentials",
+        "title": "Clear Stored Credentials",
+        "icon": "$(key-remove)"
       }
     ],
     "menus": {
@@ -48,6 +53,11 @@
       "view/item/context": [
         {
           "command": "oneKeyVault.removeKeyVault",
+          "when": "viewItem == keyVault",
+          "group": "inline"
+        },
+        {
+          "command": "oneKeyVault.clearStoredCredentials",
           "when": "viewItem == keyVault",
           "group": "inline"
         }
@@ -77,8 +87,10 @@
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
     "esbuild": "npm run esbuild-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npm run webview:build",
     "watch": "tsc -watch -p ./",
+    "webview:build": "tsc -p ./media/tsconfig.webview.json",
+    "webview:watch": "tsc -watch -p ./media/tsconfig.webview.json",
     "lint": "eslint src",
     "pretest": "npm run compile && npm run lint",
     "test": "node ./out/test/runTest.js",

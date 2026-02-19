@@ -12,64 +12,6 @@ Azure Key Vault explorer extension for VS Code with inline secret editing capabi
 - 🗑️ **Delete secrets** - Remove secrets from the vault
 - 👁️ **Toggle secret visibility** - Reveal/hide secret values for security
 
-## Installation
-
-### From Source
-
-1. Clone or download this repository
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Build the extension:
-
-```bash
-npm run esbuild
-```
-
-4. Package the extension (requires `vsce`):
-
-```bash
-npm install -g vsce
-vsce package
-```
-
-5. Install in VS Code:
-   - Go to Extensions (Ctrl+Shift+X)
-   - Click the "..." menu
-   - Select "Install from VSIX..."
-   - Choose the generated `.vsix` file
-
-## Development
-
-### Prerequisites
-
-- Node.js 16+
-- npm or yarn
-- Azure CLI or VS Code Azure extension for authentication
-
-### Watch Mode
-
-For continuous development:
-
-```bash
-npm run esbuild-watch
-```
-
-### Run Extension
-
-1. Open the project in VS Code
-2. Press `F5` to launch the extension in a new window
-3. The extension will be loaded with the latest code
-
-### Debug
-
-- Set breakpoints in the source code
-- Use VS Code's Debug console and variables inspector
-- Check the Extension Host output for logs
-
 ## Usage
 
 ### Adding a Key Vault
@@ -142,29 +84,51 @@ Example:
 
 ## Authentication
 
-The extension uses Azure Identity for authentication. Make sure you have one of the following configured:
+The extension currently supports these authentication options:
 
-### Option 1: Azure CLI (Recommended for local development)
+### Option 1: VS Code sign-in (Visual Studio Code Credential)
+
+Sign in to Azure in VS Code, then open the Key Vault from the tree view.
+
+### Option 2: Service Principal (prompted by extension)
+
+If VS Code sign-in is unavailable, the extension prompts for:
+
+- Tenant ID
+- Client ID (Application ID)
+- Client Secret (requested per session when opening a Key Vault)
+
+Create and grant a service principal with Azure CLI:
 
 ```bash
-az login
+# 1) Create service principal (save appId, password, tenant from output)
+az ad sp create-for-rbac --name "<your-keyvault-name>" --skip-assignment
+
+# 2) Set variables from step 1 output + your vault name
+APP_ID="<appId>"
+TENANT_ID="<tenant>"
+CLIENT_SECRET="<password>"
+VAULT_NAME="<your-keyvault-name>"
+
+# 3) Resolve SP object ID and Key Vault scope
+SP_OBJECT_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
+SCOPE=$(az keyvault show --name "$VAULT_NAME" --query id -o tsv)
+
+# 4) Assign least-privilege role for secrets operations
+az role assignment create \
+   --assignee-object-id "$SP_OBJECT_ID" \
+   --assignee-principal-type ServicePrincipal \
+   --role "Key Vault Secrets Officer" \
+   --scope "$SCOPE"
 ```
 
-### Option 2: VS Code Azure Extension
+Use these values in the extension prompts:
 
-Install the [Azure Account](https://marketplace.visualstudio.com/items?itemName=ms-vscode.azure-account) extension and sign in.
+- Tenant ID: `$TENANT_ID`
+- Client ID: `$APP_ID`
+- Client Secret: `$CLIENT_SECRET`
 
-### Option 3: Environment Variables (Service Principal)
-
-```bash
-export AZURE_CLIENT_ID=your-client-id
-export AZURE_CLIENT_SECRET=your-client-secret
-export AZURE_TENANT_ID=your-tenant-id
-```
-
-### Option 4: Managed Identity (Azure VMs/Container Apps)
-
-Automatically available when running on Azure resources.
+The extension stores only Tenant ID and Client ID in VS Code secret storage.
 
 ## Permissions Required
 
@@ -176,19 +140,6 @@ Your Azure account needs the following permissions on the Key Vault:
 - `Microsoft.KeyVault/vaults/secrets/delete` - Delete secrets
 
 These are typically available with the "Key Vault Administrator" or "Key Vault Secrets Officer" roles.
-
-## Configuration
-
-The extension stores Key Vault URLs in VS Code's global settings (encrypted). No additional configuration is needed.
-
-### Clear All Stored Vaults
-
-To reset and clear all stored vaults:
-
-1. Open Command Palette (Ctrl+Shift+P)
-2. Type: `Developer: Set Context`
-3. Search for `oneKeyVault.vaults` in settings
-4. Clear the stored data
 
 ## Security Notes
 
@@ -268,16 +219,6 @@ Planned features for future versions:
 - [ ] Scheduled secret rotation alerts
 - [ ] Integration with GitHub Secrets
 
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit changes: `git commit -am 'Add my feature'`
-4. Push to branch: `git push origin feature/my-feature`
-5. Submit a Pull Request
-
 ## License
 
 MIT License - see LICENSE file for details
@@ -285,15 +226,3 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues, bugs, or feature requests, please open an issue on GitHub.
-
-## Changelog
-
-### v0.0.1 (Initial Release)
-
-- Initial release with basic Key Vault connection
-- Secret listing with pagination
-- Search, sort, and filter capabilities
-- Inline secret editing
-- Secret deletion
-- Add/remove vaults
-- Secret visibility toggle
