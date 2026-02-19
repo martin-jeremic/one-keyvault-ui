@@ -3,7 +3,7 @@
   "displayName": "One Key Vault UI",
   "publisher": "onedevteam",
   "description": "Azure Key Vault explorer with inline secret editing capabilities",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.98.2"
   },
