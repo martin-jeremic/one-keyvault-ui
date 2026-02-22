@@ -1,3 +1,12 @@
+## [1.0.1](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.0...v1.0.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* add icon ([5b7af26](https://github.com/martin-jeremic/one-keyvault-ui/commit/5b7af26a9b007d165640b8be766f0daf7b98bdb7))
+* mege ([eadc8ef](https://github.com/martin-jeremic/one-keyvault-ui/commit/eadc8efebef1bc9f3ffc4e4fcd6d14093890a8e3))
+* merge ([a21152e](https://github.com/martin-jeremic/one-keyvault-ui/commit/a21152ef08612718d4f4c08886a926dde636acc8))
+
 # 1.0.0 (2026-02-19)
 
 
