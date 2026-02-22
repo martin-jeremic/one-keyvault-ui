@@ -2,8 +2,13 @@
   "name": "one-keyvault-ui",
   "displayName": "One Key Vault UI",
   "publisher": "onedevteam",
+<<<<<<< HEAD
   "description": "Browse and edit Azure Key Vault secrets directly in VS Code with an intuitive explorer UI",
   "version": "0.0.1",
+=======
+  "description": "Azure Key Vault explorer with inline secret editing capabilities",
+  "version": "1.0.0",
+>>>>>>> main
   "engines": {
     "vscode": "^1.98.2"
   },
