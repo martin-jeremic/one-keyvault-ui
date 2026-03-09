@@ -49,6 +49,7 @@ export function renderSecretRowHtml(data: TemplateRowData): string {
   return applyTemplate(store.secretRow, {
     encodedName: data.encodedName,
     escapedName: data.escapedName,
+    interactionDisabledAttr: data.interactionDisabledAttr,
     enabledClass: data.enabledClass,
     enabledText: data.enabledText,
     enabledValue: data.enabledValue,

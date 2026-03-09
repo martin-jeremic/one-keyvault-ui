@@ -70,12 +70,23 @@ function onTableClick(event: Event): void {
   if (!action) return;
 
   if (action === "removeTag") {
+    const detailsRow = target.closest(".details-row");
+    const detailsEncodedName = detailsRow?.getAttribute("data-secret-name");
+    if (detailsEncodedName) {
+      const secretName = decodeURIComponent(detailsEncodedName);
+      if (!isActionAllowedForSecret(secretName, action)) {
+        return;
+      }
+    }
     removeTagRow(target);
     return;
   }
 
   if (!encodedName) return;
   const secretName = decodeURIComponent(encodedName);
+  if (!isActionAllowedForSecret(secretName, action)) {
+    return;
+  }
   if (action === "toggle") {
     toggleVisibility(secretName);
   } else if (action === "edit") {
@@ -105,6 +116,10 @@ function onTableChange(event: Event): void {
   if (!role || !encodedName) return;
 
   const secretName = decodeURIComponent(encodedName);
+  const secret = state.allSecrets.find((s) => s.name === secretName);
+  if (!secret || !secret.enabled) {
+    return;
+  }
   if (role === "notBeforeEnabled" || role === "expiresOnEnabled") {
     toggleDateEnabled(secretName, role === "notBeforeEnabled");
   } else if (role === "notBefore" || role === "expiresOn") {
@@ -112,6 +127,17 @@ function onTableChange(event: Event): void {
   } else if (role === "tagKey" || role === "tagValue") {
     updateTags(secretName);
   }
+}
+
+function isActionAllowedForSecret(secretName: string, action: string): boolean {
+  const secret = state.allSecrets.find((s) => s.name === secretName);
+  if (!secret) {
+    return true;
+  }
+  if (secret.enabled) {
+    return true;
+  }
+  return action === "toggleEnabled" || action === "delete";
 }
 
 function toggleVisibility(secretName: string): void {
@@ -131,13 +157,17 @@ function toggleVisibility(secretName: string): void {
 }
 
 function toggleDetails(secretName: string): void {
+  const targetSecret = state.allSecrets.find((s) => s.name === secretName);
+  if (!targetSecret || !targetSecret.enabled) {
+    return;
+  }
+
   if (state.expandedSecretName === secretName) {
     state.expandedSecretName = null;
     delete state.editsBySecretName[secretName];
   } else {
     state.expandedSecretName = secretName;
-    const secret = state.allSecrets.find((s) => s.name === secretName);
-    if (secret && !secret.detailsLoaded) {
+    if (!targetSecret.detailsLoaded) {
       requestSecretDetails(secretName);
     }
   }
@@ -334,11 +364,17 @@ function onWindowMessage(event: MessageEvent): void {
   const message = event.data as {
     command?: string;
     secretName?: string;
+    progress?: number;
+    processed?: number;
+    total?: number;
+    status?: string;
     data?: {
       secrets?: Secret[];
       total?: number;
       details?: {
         id?: string;
+        created?: string | Date | null;
+        updated?: string | Date | null;
         notBefore?: string | Date | null;
         expiresOn?: string | Date | null;
         tags?: Record<string, string>;
@@ -348,6 +384,23 @@ function onWindowMessage(event: MessageEvent): void {
     message?: string;
   };
   switch (message.command) {
+    case "secretsLoadProgress": {
+      const processed = message.processed ?? 0;
+      const total = message.total ?? 0;
+      const progress =
+        typeof message.progress === "number"
+          ? message.progress
+          : total > 0
+            ? Math.round((processed / total) * 100)
+            : 0;
+      const status =
+        message.status ||
+        (total > 0
+          ? `Loading secrets... (${processed}/${total})`
+          : "Preparing secret list...");
+      showLoading(true, progress, status);
+      break;
+    }
     case "secretsLoaded":
       state.allSecrets = (message.data?.secrets || []).map((secret) => ({
         ...secret,
@@ -366,6 +419,8 @@ function onWindowMessage(event: MessageEvent): void {
         );
         if (target) {
           target.id = details.id;
+          target.created = details.created;
+          target.updated = details.updated;
           target.notBefore = details.notBefore;
           target.expiresOn = details.expiresOn;
           target.tags = details.tags;

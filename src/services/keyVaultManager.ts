@@ -37,15 +37,91 @@ export class KeyVaultManager {
   private secretClients: Map<string, SecretClient> = new Map();
   private credential: TokenCredential;
   private allSecretsCache: Map<string, Secret[]> = new Map();
+  private outputChannel: vscode.OutputChannel;
   private spInfo: ServicePrincipalInfo | null = null;
   private sessionClientSecret: string | null = null;
   private secretStorage: vscode.SecretStorage | null = null;
 
-  constructor(secretStorage?: vscode.SecretStorage) {
+  constructor(
+    secretStorage?: vscode.SecretStorage,
+    outputChannel?: vscode.OutputChannel,
+  ) {
     this.secretStorage = secretStorage || null;
+    this.outputChannel =
+      outputChannel ?? vscode.window.createOutputChannel("One Key Vault UI");
     // Initialize with VS Code credential; will be replaced if SP creds are available
     this.credential = new VisualStudioCodeCredential();
     this.initializeCredential();
+  }
+
+  private buildLogContext(
+    vaultUrl: string,
+    context?: Record<string, unknown>,
+  ): string {
+    const baseContext: Record<string, unknown> = {
+      vaultUrl,
+      ...context,
+    };
+    return JSON.stringify(baseContext);
+  }
+
+  private logDeveloper(message: string): void {
+    this.outputChannel.appendLine(`[KeyVaultManager] ${message}`);
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
+  }
+
+  private shouldPromptForCredentials(error: unknown): boolean {
+    const errorMessage = this.getErrorMessage(error);
+
+    if (error instanceof CredentialUnavailableError) {
+      return true;
+    }
+
+    if (errorMessage.includes("CredentialUnavailableError")) {
+      return true;
+    }
+
+    if (
+      errorMessage.includes(
+        "Visual Studio Code Authentication is not available",
+      )
+    ) {
+      return !this.spInfo || !this.sessionClientSecret;
+    }
+
+    return false;
+  }
+
+  private async trackKeyVaultRequest<T>(
+    operation: string,
+    vaultUrl: string,
+    action: () => Promise<T>,
+    context?: Record<string, unknown>,
+  ): Promise<T> {
+    const startedAt = Date.now();
+    const details = this.buildLogContext(vaultUrl, context);
+    this.logDeveloper(`REQUEST START ${operation} ${details}`);
+
+    try {
+      const result = await action();
+      const durationMs = Date.now() - startedAt;
+      this.logDeveloper(
+        `REQUEST SUCCESS ${operation} durationMs=${durationMs} ${details}`,
+      );
+      return result;
+    } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      this.logDeveloper(
+        `REQUEST ERROR ${operation} durationMs=${durationMs} error="${this.getErrorMessage(error)}" ${details}`,
+      );
+      throw error;
+    }
   }
 
   private initializeCredential(): void {
@@ -69,7 +145,13 @@ export class KeyVaultManager {
       } else {
         this.credential = credentials[0];
       }
+      this.logDeveloper(
+        `Credential initialized with ${credentials.length > 1 ? "ChainedTokenCredential" : "VisualStudioCodeCredential"}`,
+      );
     } catch (error) {
+      this.logDeveloper(
+        `Credential initialization failed: ${this.getErrorMessage(error)}`,
+      );
       console.error("Failed to initialize credential:", error);
     }
   }
@@ -92,6 +174,19 @@ export class KeyVaultManager {
         console.error("Failed to store SP info:", error);
       }
     }
+
+    this.initializeCredential();
+    this.secretClients.clear();
+  }
+
+  getStoredServicePrincipalInfo(): ServicePrincipalInfo | null {
+    if (!this.spInfo) {
+      return null;
+    }
+    return {
+      tenantId: this.spInfo.tenantId,
+      clientId: this.spInfo.clientId,
+    };
   }
 
   async loadStoredServicePrincipalInfo(): Promise<void> {
@@ -172,6 +267,9 @@ export class KeyVaultManager {
 
   private getSecretClient(vaultUrl: string): SecretClient {
     if (!this.secretClients.has(vaultUrl)) {
+      this.logDeveloper(
+        `Creating SecretClient ${this.buildLogContext(vaultUrl)}`,
+      );
       this.secretClients.set(
         vaultUrl,
         new SecretClient(vaultUrl, this.credential),
@@ -197,33 +295,63 @@ export class KeyVaultManager {
     vaultUrl: string,
     page: number = 0,
     pageSize: number = 10,
+    onProgress?: (processed: number, total: number) => void,
+    allowCredentialPrompt: boolean = true,
   ): Promise<SecretsPage> {
     try {
       const client = this.getSecretClient(vaultUrl);
       const allSecrets: Secret[] = [];
+      const secretPropertiesList: Array<{
+        name: string;
+        enabled: boolean;
+        created?: Date;
+        updated?: Date;
+      }> = [];
 
-      // Fetch all secrets (with pagination from API)
-      const secretsIterator = client.listPropertiesOfSecrets();
+      // Fetch all secrets and return list fields.
+      // Additional metadata is loaded on-demand via getSecretDetails.
+      const secretsIterator = await this.trackKeyVaultRequest(
+        "listPropertiesOfSecrets",
+        vaultUrl,
+        async () => client.listPropertiesOfSecrets(),
+        { page, pageSize },
+      );
       for await (const secretProperties of secretsIterator) {
-        const enabled = secretProperties.enabled ?? true;
+        secretPropertiesList.push({
+          name: secretProperties.name,
+          enabled: secretProperties.enabled ?? true,
+          created: secretProperties.createdOn,
+          updated: secretProperties.updatedOn,
+        });
+      }
+
+      const total = secretPropertiesList.length;
+      onProgress?.(0, total);
+
+      for (const secretProperties of secretPropertiesList) {
+        const enabled = secretProperties.enabled;
         let value = "";
         if (enabled) {
-          const secret = await client.getSecret(secretProperties.name);
+          const secret = await this.trackKeyVaultRequest(
+            "getSecret",
+            vaultUrl,
+            async () => client.getSecret(secretProperties.name),
+            { secretName: secretProperties.name },
+          );
           value = secret.value || "";
         }
         allSecrets.push({
           name: secretProperties.name,
           value,
           enabled,
-          created: secretProperties.createdOn,
-          updated: secretProperties.updatedOn,
+          created: secretProperties.created,
+          updated: secretProperties.updated,
         });
+        onProgress?.(allSecrets.length, total);
       }
 
       // Cache the secrets
       this.allSecretsCache.set(vaultUrl, allSecrets);
-
-      const total = allSecrets.length;
 
       return {
         secrets: allSecrets,
@@ -233,22 +361,19 @@ export class KeyVaultManager {
         hasMore: false,
       };
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      // Check if this is a credential unavailable error
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        // Prompt user to enter SP credentials
-        // Prompt only during initial open
-        await this.promptForServicePrincipalInfo();
+      if (this.shouldPromptForCredentials(error) && allowCredentialPrompt) {
+        if (!this.spInfo) {
+          await this.promptForServicePrincipalInfo();
+        }
         await this.ensureSessionSecretForOpen();
 
-        return this.getSecrets(vaultUrl, page, pageSize);
+        return this.getSecrets(vaultUrl, page, pageSize, onProgress, false);
+      }
+
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(
+          "Authentication failed after credential prompt. Check Tenant ID, Client ID, Client Secret, and Key Vault access.",
+        );
       }
 
       throw new Error(`Failed to get secrets: ${error}`);
@@ -262,7 +387,12 @@ export class KeyVaultManager {
   ): Promise<void> {
     try {
       const client = this.getSecretClient(vaultUrl);
-      await client.setSecret(secretName, secretValue);
+      await this.trackKeyVaultRequest(
+        "setSecret",
+        vaultUrl,
+        async () => client.setSecret(secretName, secretValue),
+        { secretName },
+      );
 
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
@@ -289,8 +419,18 @@ export class KeyVaultManager {
   async deleteSecret(vaultUrl: string, secretName: string): Promise<void> {
     try {
       const client = this.getSecretClient(vaultUrl);
-      const poller = await client.beginDeleteSecret(secretName);
-      await poller.pollUntilDone();
+      const poller = await this.trackKeyVaultRequest(
+        "beginDeleteSecret",
+        vaultUrl,
+        async () => client.beginDeleteSecret(secretName),
+        { secretName },
+      );
+      await this.trackKeyVaultRequest(
+        "pollUntilDone",
+        vaultUrl,
+        async () => poller.pollUntilDone(),
+        { secretName },
+      );
 
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
@@ -326,11 +466,27 @@ export class KeyVaultManager {
         if (value === undefined) {
           throw new Error("Secret value required to enable a disabled secret.");
         }
-        await client.setSecret(secretName, value, { enabled: true });
+        await this.trackKeyVaultRequest(
+          "setSecret",
+          vaultUrl,
+          async () => client.setSecret(secretName, value, { enabled: true }),
+          { secretName, enabled: true },
+        );
       } else {
-        const current = await client.getSecret(secretName);
+        const current = await this.trackKeyVaultRequest(
+          "getSecret",
+          vaultUrl,
+          async () => client.getSecret(secretName),
+          { secretName },
+        );
         const currentValue = current.value ?? "";
-        await client.setSecret(secretName, currentValue, { enabled: false });
+        await this.trackKeyVaultRequest(
+          "setSecret",
+          vaultUrl,
+          async () =>
+            client.setSecret(secretName, currentValue, { enabled: false }),
+          { secretName, enabled: false },
+        );
       }
 
       // Invalidate cache
@@ -366,14 +522,30 @@ export class KeyVaultManager {
     try {
       const client = this.getSecretClient(vaultUrl);
       if (properties.tags !== undefined) {
-        const current = await client.getSecret(secretName);
+        const current = await this.trackKeyVaultRequest(
+          "getSecret",
+          vaultUrl,
+          async () => client.getSecret(secretName),
+          { secretName },
+        );
         const currentValue = current.value ?? "";
-        await client.setSecret(secretName, currentValue, {
-          tags: properties.tags,
-          notBefore: properties.notBefore ?? current.properties.notBefore,
-          expiresOn: properties.expiresOn ?? current.properties.expiresOn,
-          enabled: current.properties.enabled,
-        });
+        await this.trackKeyVaultRequest(
+          "setSecret",
+          vaultUrl,
+          async () =>
+            client.setSecret(secretName, currentValue, {
+              tags: properties.tags,
+              notBefore: properties.notBefore ?? current.properties.notBefore,
+              expiresOn: properties.expiresOn ?? current.properties.expiresOn,
+              enabled: current.properties.enabled,
+            }),
+          {
+            secretName,
+            updateTags: true,
+            updateNotBefore: properties.notBefore !== undefined,
+            updateExpiresOn: properties.expiresOn !== undefined,
+          },
+        );
       } else {
         const updatePayload: {
           notBefore?: Date;
@@ -387,12 +559,28 @@ export class KeyVaultManager {
           updatePayload.expiresOn =
             properties.expiresOn === null ? undefined : properties.expiresOn;
         }
-        const current = await client.getSecret(secretName);
+        const current = await this.trackKeyVaultRequest(
+          "getSecret",
+          vaultUrl,
+          async () => client.getSecret(secretName),
+          { secretName },
+        );
         const version = current.properties.version;
         if (!version) {
           throw new Error("Secret version not found for update.");
         }
-        await client.updateSecretProperties(secretName, version, updatePayload);
+        await this.trackKeyVaultRequest(
+          "updateSecretProperties",
+          vaultUrl,
+          async () =>
+            client.updateSecretProperties(secretName, version, updatePayload),
+          {
+            secretName,
+            version,
+            updateNotBefore: properties.notBefore !== undefined,
+            updateExpiresOn: properties.expiresOn !== undefined,
+          },
+        );
       }
 
       // Invalidate cache
@@ -421,25 +609,29 @@ export class KeyVaultManager {
     secretName: string,
   ): Promise<{
     id?: string;
+    created?: Date;
+    updated?: Date;
     notBefore?: Date;
     expiresOn?: Date;
     tags?: Record<string, string>;
   }> {
     try {
       const client = this.getSecretClient(vaultUrl);
-      const iterator = client.listPropertiesOfSecrets();
-      for await (const props of iterator) {
-        if (props.name === secretName) {
-          return {
-            id: props.id,
-            notBefore: props.notBefore,
-            expiresOn: props.expiresOn,
-            tags: props.tags,
-          };
-        }
-      }
+      const secret = await this.trackKeyVaultRequest(
+        "getSecret",
+        vaultUrl,
+        async () => client.getSecret(secretName),
+        { secretName },
+      );
 
-      throw new Error("Secret not found in Key Vault.");
+      return {
+        id: secret.properties.id,
+        created: secret.properties.createdOn,
+        updated: secret.properties.updatedOn,
+        notBefore: secret.properties.notBefore,
+        expiresOn: secret.properties.expiresOn,
+        tags: secret.properties.tags,
+      };
     } catch (error) {
       const errorMessage = (error as Error).message;
 

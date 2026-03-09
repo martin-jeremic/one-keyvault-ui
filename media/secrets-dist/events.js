@@ -44,12 +44,23 @@ function onTableClick(event) {
     if (!action)
         return;
     if (action === "removeTag") {
+        const detailsRow = target.closest(".details-row");
+        const detailsEncodedName = detailsRow?.getAttribute("data-secret-name");
+        if (detailsEncodedName) {
+            const secretName = decodeURIComponent(detailsEncodedName);
+            if (!isActionAllowedForSecret(secretName, action)) {
+                return;
+            }
+        }
         removeTagRow(target);
         return;
     }
     if (!encodedName)
         return;
     const secretName = decodeURIComponent(encodedName);
+    if (!isActionAllowedForSecret(secretName, action)) {
+        return;
+    }
     if (action === "toggle") {
         toggleVisibility(secretName);
     }
@@ -85,6 +96,10 @@ function onTableChange(event) {
     if (!role || !encodedName)
         return;
     const secretName = decodeURIComponent(encodedName);
+    const secret = state.allSecrets.find((s) => s.name === secretName);
+    if (!secret || !secret.enabled) {
+        return;
+    }
     if (role === "notBeforeEnabled" || role === "expiresOnEnabled") {
         toggleDateEnabled(secretName, role === "notBeforeEnabled");
     }
@@ -94,6 +109,16 @@ function onTableChange(event) {
     else if (role === "tagKey" || role === "tagValue") {
         updateTags(secretName);
     }
+}
+function isActionAllowedForSecret(secretName, action) {
+    const secret = state.allSecrets.find((s) => s.name === secretName);
+    if (!secret) {
+        return true;
+    }
+    if (secret.enabled) {
+        return true;
+    }
+    return action === "toggleEnabled" || action === "delete";
 }
 function toggleVisibility(secretName) {
     const safeName = window.CSS.escape(encodeURIComponent(secretName));
@@ -114,14 +139,17 @@ function toggleVisibility(secretName) {
     }
 }
 function toggleDetails(secretName) {
+    const targetSecret = state.allSecrets.find((s) => s.name === secretName);
+    if (!targetSecret || !targetSecret.enabled) {
+        return;
+    }
     if (state.expandedSecretName === secretName) {
         state.expandedSecretName = null;
         delete state.editsBySecretName[secretName];
     }
     else {
         state.expandedSecretName = secretName;
-        const secret = state.allSecrets.find((s) => s.name === secretName);
-        if (secret && !secret.detailsLoaded) {
+        if (!targetSecret.detailsLoaded) {
             requestSecretDetails(secretName);
         }
     }
@@ -291,6 +319,21 @@ function readDetailsState(secretName) {
 function onWindowMessage(event) {
     const message = event.data;
     switch (message.command) {
+        case "secretsLoadProgress": {
+            const processed = message.processed ?? 0;
+            const total = message.total ?? 0;
+            const progress = typeof message.progress === "number"
+                ? message.progress
+                : total > 0
+                    ? Math.round((processed / total) * 100)
+                    : 0;
+            const status = message.status ||
+                (total > 0
+                    ? `Loading secrets... (${processed}/${total})`
+                    : "Preparing secret list...");
+            showLoading(true, progress, status);
+            break;
+        }
         case "secretsLoaded":
             state.allSecrets = (message.data?.secrets || []).map((secret) => ({
                 ...secret,
@@ -307,6 +350,8 @@ function onWindowMessage(event) {
                 const target = state.allSecrets.find((secret) => secret.name === message.secretName);
                 if (target) {
                     target.id = details.id;
+                    target.created = details.created;
+                    target.updated = details.updated;
                     target.notBefore = details.notBefore;
                     target.expiresOn = details.expiresOn;
                     target.tags = details.tags;

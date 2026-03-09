@@ -59,7 +59,12 @@
       {
         "command": "oneKeyVault.clearStoredCredentials",
         "title": "Clear Stored Credentials",
-        "icon": "$(key-remove)"
+        "icon": "$(key)"
+      },
+      {
+        "command": "oneKeyVault.editStoredCredentials",
+        "title": "Edit Stored Credentials",
+        "icon": "$(edit)"
       }
     ],
     "menus": {
@@ -74,12 +79,17 @@
         {
           "command": "oneKeyVault.removeKeyVault",
           "when": "viewItem == keyVault",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "oneKeyVault.editStoredCredentials",
+          "when": "viewItem == keyVault",
+          "group": "inline@2"
         },
         {
           "command": "oneKeyVault.clearStoredCredentials",
           "when": "viewItem == keyVault",
-          "group": "inline"
+          "group": "inline@3"
         }
       ]
     },
