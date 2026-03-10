@@ -1,5 +1,9 @@
 export const dom = {
     loadingContainer: document.getElementById("loadingContainer"),
+    loadingStatusText: document.getElementById("loadingStatusText"),
+    loadingProgressBar: document.getElementById("loadingProgressBar"),
+    loadingProgressFill: document.getElementById("loadingProgressFill"),
+    loadingProgressPercent: document.getElementById("loadingProgressPercent"),
     emptyContainer: document.getElementById("emptyContainer"),
     tableContainer: document.getElementById("tableContainer"),
     secretsTable: document.getElementById("secretsTable"),

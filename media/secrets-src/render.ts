@@ -27,8 +27,24 @@ export function showMessage(message: string, type?: string): void {
   }, 5000);
 }
 
-export function showLoading(show: boolean): void {
+export function showLoading(
+  show: boolean,
+  progress: number = 0,
+  statusText: string = "Loading secrets...",
+): void {
   dom.loadingContainer.style.display = show ? "block" : "none";
+  if (!show) {
+    return;
+  }
+
+  const boundedProgress = Math.max(0, Math.min(100, progress));
+  dom.loadingStatusText.textContent = statusText;
+  dom.loadingProgressFill.style.width = `${boundedProgress}%`;
+  dom.loadingProgressPercent.textContent = `${Math.round(boundedProgress)}%`;
+  dom.loadingProgressBar.setAttribute(
+    "aria-valuenow",
+    String(Math.round(boundedProgress)),
+  );
 }
 
 export function updatePaginationUI(): void {
@@ -43,16 +59,18 @@ export function updatePaginationUI(): void {
 export function renderSecretRow(secret: Secret): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const row = document.createElement("tr");
-  const createdDate = new Date(secret.created || "").toLocaleString();
-  const updatedDate = new Date(secret.updated || "").toLocaleString();
+  const createdDate = formatDate(secret.created);
+  const updatedDate = formatDate(secret.updated);
   const encodedName = encodeURIComponent(secret.name);
+  const interactionDisabledAttr = secret.enabled ? "" : "disabled";
   const enabledClass = secret.enabled ? "enabled" : "disabled";
   const enabledText = secret.enabled ? "Enabled" : "Disabled";
-  const isExpanded = state.expandedSecretName === secret.name;
+  const isExpanded = secret.enabled && state.expandedSecretName === secret.name;
 
   row.innerHTML = renderSecretRowHtml({
     encodedName,
     escapedName: escapeHtml(secret.name),
+    interactionDisabledAttr,
     enabledClass,
     enabledText,
     enabledValue: secret.enabled ? "true" : "false",
@@ -177,4 +195,11 @@ function toTimestamp(value?: string | Date | null): number {
   const date = new Date(value);
   const time = date.getTime();
   return Number.isFinite(time) ? time : 0;
+}
+
+function formatDate(value?: string | Date | null): string {
+  if (!value) return "-";
+  const date = new Date(value);
+  const time = date.getTime();
+  return Number.isFinite(time) ? date.toLocaleString() : "-";
 }

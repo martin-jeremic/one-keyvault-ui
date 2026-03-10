@@ -5,7 +5,7 @@ import type { SecretPropertiesUpdate } from "./types.js";
 const vscode = acquireVsCodeApi();
 
 export function loadSecrets(): void {
-  showLoading(true);
+  showLoading(true, 0, "Preparing secret list...");
   vscode.postMessage({
     command: "loadSecrets",
     page: state.currentPage,

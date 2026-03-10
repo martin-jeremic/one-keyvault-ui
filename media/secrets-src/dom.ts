@@ -2,6 +2,18 @@ import type { DomRefs } from "./types.js";
 
 export const dom: DomRefs = {
   loadingContainer: document.getElementById("loadingContainer") as HTMLElement,
+  loadingStatusText: document.getElementById(
+    "loadingStatusText",
+  ) as HTMLElement,
+  loadingProgressBar: document.getElementById(
+    "loadingProgressBar",
+  ) as HTMLElement,
+  loadingProgressFill: document.getElementById(
+    "loadingProgressFill",
+  ) as HTMLElement,
+  loadingProgressPercent: document.getElementById(
+    "loadingProgressPercent",
+  ) as HTMLElement,
   emptyContainer: document.getElementById("emptyContainer") as HTMLElement,
   tableContainer: document.getElementById("tableContainer") as HTMLElement,
   secretsTable: document.getElementById("secretsTable") as HTMLElement,

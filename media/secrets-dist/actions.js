@@ -2,7 +2,7 @@ import { showLoading } from "./render.js";
 import { state } from "./state.js";
 const vscode = acquireVsCodeApi();
 export function loadSecrets() {
-    showLoading(true);
+    showLoading(true, 0, "Preparing secret list...");
     vscode.postMessage({
         command: "loadSecrets",
         page: state.currentPage,

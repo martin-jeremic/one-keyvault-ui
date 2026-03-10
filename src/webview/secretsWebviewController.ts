@@ -93,10 +93,40 @@ export class SecretsWebviewController {
     message: WebviewMessage,
   ): Promise<void> {
     try {
+      panel.webview.postMessage({
+        command: "secretsLoadProgress",
+        progress: 0,
+        processed: 0,
+        total: 0,
+        status: "Preparing secret list...",
+      });
+
+      let lastProgressSentAt = 0;
       const secrets = await this.keyVaultManager.getSecrets(
         vaultUrl,
         message.page,
         message.pageSize,
+        (processed, total) => {
+          const now = Date.now();
+          const isComplete = total > 0 && processed >= total;
+          if (!isComplete && now - lastProgressSentAt < 80) {
+            return;
+          }
+          lastProgressSentAt = now;
+
+          const progress =
+            total > 0 ? Math.round((processed / total) * 100) : 0;
+          panel.webview.postMessage({
+            command: "secretsLoadProgress",
+            progress,
+            processed,
+            total,
+            status:
+              total > 0
+                ? `Loading secrets... (${processed}/${total})`
+                : "Preparing secret list...",
+          });
+        },
       );
       panel.webview.postMessage({
         command: "secretsLoaded",

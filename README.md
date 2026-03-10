@@ -2,6 +2,8 @@
 
 Azure Key Vault explorer extension for VS Code with inline secret editing capabilities.
 
+<img src="img/one-keyvault-ui-screen.png" alt="One Key Vault UI" width="600" />
+
 ## Features
 
 - 🔐 **Connect to Azure Key Vaults** - Add and manage multiple Key Vaults
@@ -84,19 +86,34 @@ Example:
 
 ## Authentication
 
-The extension currently supports these authentication options:
+The first time you open a Key Vault in a session, the extension prompts you to choose an authentication method. This prompt appears once per VS Code session — subsequent vault opens skip the prompt until VS Code is restarted or credentials are cleared.
 
-### Option 1: VS Code sign-in (Visual Studio Code Credential)
+### Option 1: Sign in with VS Code
 
-Sign in to Azure in VS Code, then open the Key Vault from the tree view.
+Uses the [Azure Account](https://marketplace.visualstudio.com/items?itemName=ms-vscode.azure-account) extension's active sign-in. Select this option if you are already signed in to Azure in VS Code.
 
-### Option 2: Service Principal (prompted by extension)
+**Requirements:** Azure Account extension installed and signed in.
 
-If VS Code sign-in is unavailable, the extension prompts for:
+### Option 2: Sign in with Azure CLI
 
-- Tenant ID
-- Client ID (Application ID)
-- Client Secret (requested per session when opening a Key Vault)
+Opens a terminal and runs `az login` for you. Complete the browser sign-in, then click **Continue** in the dialog to proceed.
+
+**Requirements:** [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and available on your PATH.
+
+```bash
+# Verify Azure CLI is installed
+az --version
+
+# Manually sign in (the extension will do this for you)
+az login
+```
+
+### Option 3: Use a Service Principal
+
+Prompts for Tenant ID, Client ID, and Client Secret. Suitable for automated or non-interactive environments.
+
+- **Tenant ID** and **Client ID** are stored in VS Code secret storage between sessions
+- **Client Secret** is held in memory only and never persisted — you will be prompted for it each time a new session starts
 
 Create and grant a service principal with Azure CLI:
 
@@ -128,7 +145,16 @@ Use these values in the extension prompts:
 - Client ID: `$APP_ID`
 - Client Secret: `$CLIENT_SECRET`
 
-The extension stores only Tenant ID and Client ID in VS Code secret storage.
+### Managing Stored Credentials
+
+Each vault in the tree view has two credential management buttons:
+
+| Button                          | Action                                                               |
+| ------------------------------- | -------------------------------------------------------------------- |
+| ✏️ **Edit Stored Credentials**  | Update the stored Tenant ID and Client ID for service principal auth |
+| 🔑 **Clear Stored Credentials** | Remove stored Tenant ID and Client ID, resetting to a clean state    |
+
+Clearing or editing credentials also resets the session authentication, so the login prompt will appear on the next vault open.
 
 ## Permissions Required
 
@@ -168,10 +194,12 @@ These are typically available with the "Key Vault Administrator" or "Key Vault S
 - Reload VS Code (Ctrl+R)
 - Check Extensions panel to see if it's installed and enabled
 
-### "Authentication required" error
+### Login prompt or "Authentication required" error
 
-- Run `az login` to authenticate with Azure CLI
-- Or install and sign in with the [Azure Account](https://marketplace.visualstudio.com/items?itemName=ms-vscode.azure-account) extension
+- The extension will show a login prompt — choose your preferred method (VS Code, Azure CLI, or Service Principal)
+- For Azure CLI option: make sure `az` is installed and run `az login` manually to verify it works
+- For VS Code option: install and sign in with the [Azure Account](https://marketplace.visualstudio.com/items?itemName=ms-vscode.azure-account) extension
+- If a session expires mid-use, the extension will re-prompt automatically
 
 ### Can't access Key Vault
 

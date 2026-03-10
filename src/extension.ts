@@ -12,7 +12,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     const storedVaults = loadStoredVaults(context);
-    const keyVaultManager = new KeyVaultManager(context.secrets);
+    const devLogChannel = vscode.window.createOutputChannel("One Key Vault UI");
+    context.subscriptions.push(devLogChannel);
+
+    const keyVaultManager = new KeyVaultManager(context.secrets, devLogChannel);
     await keyVaultManager.loadStoredServicePrincipalInfo();
 
     const treeProvider = new KeyVaultTreeProvider(
@@ -70,7 +73,10 @@ export async function activate(context: vscode.ExtensionContext) {
           return;
         }
         try {
-          await keyVaultManager.ensureSessionSecretForOpen();
+          const isAuthenticated = await keyVaultManager.authenticateForOpen();
+          if (!isAuthenticated) {
+            return;
+          }
         } catch (error) {
           vscode.window.showErrorMessage(String(error));
           return;
@@ -101,6 +107,62 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     );
     context.subscriptions.push(clearCredsCommand);
+
+    const editCredsCommand = vscode.commands.registerCommand(
+      "oneKeyVault.editStoredCredentials",
+      async (item: KeyVaultItem) => {
+        if (!item || item.isAddButton) {
+          return;
+        }
+
+        const current = keyVaultManager.getStoredServicePrincipalInfo();
+
+        const tenantId = await vscode.window.showInputBox({
+          prompt: `Tenant ID for "${item.label}"`,
+          ignoreFocusOut: true,
+          value: current?.tenantId ?? "",
+          placeHolder: "e.g., 00000000-0000-0000-0000-000000000000",
+        });
+
+        if (tenantId === undefined) {
+          return;
+        }
+
+        const trimmedTenantId = tenantId.trim();
+        if (!trimmedTenantId) {
+          vscode.window.showErrorMessage("Tenant ID is required.");
+          return;
+        }
+
+        const clientId = await vscode.window.showInputBox({
+          prompt: `Client ID for "${item.label}"`,
+          ignoreFocusOut: true,
+          value: current?.clientId ?? "",
+          placeHolder: "e.g., 00000000-0000-0000-0000-000000000000",
+        });
+
+        if (clientId === undefined) {
+          return;
+        }
+
+        const trimmedClientId = clientId.trim();
+        if (!trimmedClientId) {
+          vscode.window.showErrorMessage("Client ID is required.");
+          return;
+        }
+
+        await keyVaultManager.setServicePrincipalInfo({
+          tenantId: trimmedTenantId,
+          clientId: trimmedClientId,
+        });
+        keyVaultManager.clearSessionClientSecret();
+
+        vscode.window.showInformationMessage(
+          "Stored credentials updated. You'll be prompted for the client secret when opening a Key Vault.",
+        );
+      },
+    );
+    context.subscriptions.push(editCredsCommand);
 
     // Set context for showing the view
     vscode.commands.executeCommand("setContext", "oneKeyVault:ready", true);

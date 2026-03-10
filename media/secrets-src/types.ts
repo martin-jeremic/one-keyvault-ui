@@ -36,6 +36,10 @@ export interface State {
 
 export interface DomRefs {
   loadingContainer: HTMLElement;
+  loadingStatusText: HTMLElement;
+  loadingProgressBar: HTMLElement;
+  loadingProgressFill: HTMLElement;
+  loadingProgressPercent: HTMLElement;
   emptyContainer: HTMLElement;
   tableContainer: HTMLElement;
   secretsTable: HTMLElement;
@@ -75,6 +79,7 @@ export interface DetailsState {
 export interface TemplateRowData {
   encodedName: string;
   escapedName: string;
+  interactionDisabledAttr: string;
   enabledClass: string;
   enabledText: string;
   enabledValue: string;
