@@ -1,0 +1,35 @@
+# Source files (bundled via esbuild into out/extension.js)
+src/**
+node_modules/**
+
+# Webview TypeScript source (compiled into media/secrets-dist/)
+media/secrets-src/**
+media/secrets/**
+media/tsconfig.webview.json
+
+# Build & config files
+tsconfig.json
+.eslintrc.json
+release.config.cjs
+package-lock.json
+.gitignore
+.npmignore
+
+# Dev/test infrastructure
+.vscode-test/**
+out/test/**
+
+# Redundant tsc output (esbuild bundles everything into out/extension.js)
+out/**/*.map
+out/**/*.d.ts
+out/providers/**
+out/services/**
+out/webview/**
+
+# CI/CD and editor settings
+.github/**
+.vscode/**
+
+# Documentation not needed at runtime
+DEVELOPMENT_SETUP.md
+secrets.md
