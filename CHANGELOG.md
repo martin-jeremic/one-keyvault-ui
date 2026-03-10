@@ -1,3 +1,11 @@
+## [1.0.2](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.1...v1.0.2) (2026-03-10)
+
+
+### Bug Fixes
+
+* performance improvement, minor bug fixes, minor ui improvements ([9f35612](https://github.com/martin-jeremic/one-keyvault-ui/commit/9f356121e584d6fa2dd873254d96eb232ff24662))
+* update login options ([6be095f](https://github.com/martin-jeremic/one-keyvault-ui/commit/6be095f13da8bc5f91faec1857d87cde605e8fa9))
+
 ## [1.0.1](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.0...v1.0.1) (2026-02-22)
 
 
