@@ -73,7 +73,10 @@ export async function activate(context: vscode.ExtensionContext) {
           return;
         }
         try {
-          await keyVaultManager.ensureSessionSecretForOpen();
+          const isAuthenticated = await keyVaultManager.authenticateForOpen();
+          if (!isAuthenticated) {
+            return;
+          }
         } catch (error) {
           vscode.window.showErrorMessage(String(error));
           return;

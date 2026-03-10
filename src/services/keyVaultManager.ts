@@ -1,6 +1,7 @@
 import { SecretClient } from "@azure/keyvault-secrets";
 import {
   VisualStudioCodeCredential,
+  AzureCliCredential,
   ClientSecretCredential,
   ChainedTokenCredential,
   CredentialUnavailableError,
@@ -41,6 +42,7 @@ export class KeyVaultManager {
   private spInfo: ServicePrincipalInfo | null = null;
   private sessionClientSecret: string | null = null;
   private secretStorage: vscode.SecretStorage | null = null;
+  private sessionAuthenticated: boolean = false;
 
   constructor(
     secretStorage?: vscode.SecretStorage,
@@ -76,6 +78,10 @@ export class KeyVaultManager {
     return String(error);
   }
 
+  private getCredentialRequiredMessage(): string {
+    return "Authentication required. Sign in with VS Code or Azure CLI (az login), or use Service Principal credentials.";
+  }
+
   private shouldPromptForCredentials(error: unknown): boolean {
     const errorMessage = this.getErrorMessage(error);
 
@@ -92,10 +98,105 @@ export class KeyVaultManager {
         "Visual Studio Code Authentication is not available",
       )
     ) {
-      return !this.spInfo || !this.sessionClientSecret;
+      return true;
+    }
+
+    if (errorMessage.includes("Please run 'az login'")) {
+      return true;
+    }
+
+    if (errorMessage.includes("Azure CLI could not be found")) {
+      return true;
+    }
+
+    if (errorMessage.includes("Azure CLI not found on path")) {
+      return true;
     }
 
     return false;
+  }
+
+  async authenticateForOpen(): Promise<boolean> {
+    if (this.sessionAuthenticated) {
+      return true;
+    }
+    this.clearSessionClientSecret();
+    const result = await this.promptForAuthenticationMethod(true);
+    if (result) {
+      this.sessionAuthenticated = true;
+    }
+    return result;
+  }
+
+  private async promptForAuthenticationMethod(
+    forOpen: boolean = false,
+  ): Promise<boolean> {
+    const options: Array<
+      vscode.QuickPickItem & { id: "vscode" | "azcli" | "sp" }
+    > = [
+      {
+        id: "vscode",
+        label: "Sign in with VS Code",
+        description: "Use Azure Account sign-in in VS Code",
+      },
+      {
+        id: "azcli",
+        label: "Sign in with Azure CLI",
+        description: "Run az login in terminal",
+      },
+      {
+        id: "sp",
+        label: "Use Service Principal",
+        description: "Enter tenant ID, client ID, and client secret",
+      },
+    ];
+
+    const selected = await vscode.window.showQuickPick(options, {
+      title: forOpen
+        ? "Sign in before opening Key Vault"
+        : "Authentication required",
+      placeHolder: "Choose how you want to authenticate to Azure Key Vault",
+      ignoreFocusOut: true,
+    });
+
+    if (!selected) {
+      return false;
+    }
+
+    if (selected.id === "vscode") {
+      try {
+        await vscode.commands.executeCommand("azure-account.login");
+      } catch (error) {
+        throw new Error(
+          `VS Code Azure sign-in is unavailable. Install/enable Azure Account extension or use az login. ${this.getErrorMessage(error)}`,
+        );
+      }
+      this.initializeCredential();
+      this.secretClients.clear();
+      return true;
+    }
+
+    if (selected.id === "azcli") {
+      const terminal = vscode.window.createTerminal("Azure CLI Login");
+      terminal.show(true);
+      terminal.sendText("az login");
+
+      const continueChoice = await vscode.window.showInformationMessage(
+        "Complete 'az login' in the terminal, then choose Continue.",
+        { modal: true },
+        "Continue",
+      );
+
+      this.initializeCredential();
+      this.secretClients.clear();
+      return continueChoice === "Continue";
+    }
+
+    if (!this.spInfo) {
+      await this.promptForServicePrincipalInfo();
+    }
+    await this.ensureSessionSecretForOpen();
+    return true;
   }
 
   private async trackKeyVaultRequest<T>(
@@ -126,7 +227,10 @@ export class KeyVaultManager {
 
   private initializeCredential(): void {
     try {
-      const credentials: TokenCredential[] = [new VisualStudioCodeCredential()];
+      const credentials: TokenCredential[] = [
+        new VisualStudioCodeCredential(),
+        new AzureCliCredential(),
+      ];
 
       // Load SP info if available
       this.loadServicePrincipalInfo();
@@ -224,6 +328,7 @@ export class KeyVaultManager {
 
   async clearStoredServicePrincipalInfo(): Promise<void> {
     this.spInfo = null;
+    this.sessionAuthenticated = false;
     if (this.secretStorage) {
       try {
         await this.secretStorage.delete("oneKeyVault.spInfo");
@@ -243,6 +348,7 @@ export class KeyVaultManager {
 
   clearSessionClientSecret(): void {
     this.sessionClientSecret = null;
+    this.sessionAuthenticated = false;
     this.initializeCredential();
     this.secretClients.clear();
   }
@@ -362,18 +468,14 @@ export class KeyVaultManager {
       };
     } catch (error) {
       if (this.shouldPromptForCredentials(error) && allowCredentialPrompt) {
-        if (!this.spInfo) {
-          await this.promptForServicePrincipalInfo();
+        const shouldRetry = await this.promptForAuthenticationMethod();
+        if (shouldRetry) {
+          return this.getSecrets(vaultUrl, page, pageSize, onProgress, false);
         }
-        await this.ensureSessionSecretForOpen();
-
-        return this.getSecrets(vaultUrl, page, pageSize, onProgress, false);
       }
 
       if (this.shouldPromptForCredentials(error)) {
-        throw new Error(
-          "Authentication failed after credential prompt. Check Tenant ID, Client ID, Client Secret, and Key Vault access.",
-        );
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to get secrets: ${error}`);
@@ -397,19 +499,8 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      // Check if this is a credential unavailable error
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        throw new Error(
-          "Credentials required. Re-open the Key Vault to enter credentials.",
-        );
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -435,19 +526,8 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      // Check if this is a credential unavailable error
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        throw new Error(
-          "Credentials required. Re-open the Key Vault to enter credentials.",
-        );
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to delete secret: ${error}`);
@@ -492,18 +572,8 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        throw new Error(
-          "Credentials required. Re-open the Key Vault to enter credentials.",
-        );
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -586,18 +656,8 @@ export class KeyVaultManager {
       // Invalidate cache
       this.allSecretsCache.delete(vaultUrl);
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        throw new Error(
-          "Credentials required. Re-open the Key Vault to enter credentials.",
-        );
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to update secret: ${error}`);
@@ -633,18 +693,8 @@ export class KeyVaultManager {
         tags: secret.properties.tags,
       };
     } catch (error) {
-      const errorMessage = (error as Error).message;
-
-      if (
-        error instanceof CredentialUnavailableError ||
-        errorMessage.includes("CredentialUnavailableError") ||
-        errorMessage.includes(
-          "Visual Studio Code Authentication is not available",
-        )
-      ) {
-        throw new Error(
-          "Credentials required. Re-open the Key Vault to enter credentials.",
-        );
+      if (this.shouldPromptForCredentials(error)) {
+        throw new Error(this.getCredentialRequiredMessage());
       }
 
       throw new Error(`Failed to get secret details: ${error}`);
