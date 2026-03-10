@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.2...v1.0.3) (2026-03-10)
+
+
+### Bug Fixes
+
+* update vscodeignre ([5a9bc9b](https://github.com/martin-jeremic/one-keyvault-ui/commit/5a9bc9b639b2ad9494b9d283dec20b1b4b9906e5))
+
 ## [1.0.2](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.1...v1.0.2) (2026-03-10)
 
 
