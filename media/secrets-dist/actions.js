@@ -46,3 +46,8 @@ export function requestSecretDetails(secretName) {
         secretName,
     });
 }
+export function requestBulkCreateSecrets() {
+    vscode.postMessage({
+        command: "requestBulkCreateSecrets",
+    });
+}

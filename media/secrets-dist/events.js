@@ -1,12 +1,13 @@
 import { dom } from "./dom.js";
 import { filterAndDisplay, showLoading, showMessage, updateSortUI, } from "./render.js";
-import { deleteSecret, editSecret, loadSecrets, requestCreateSecret, requestSecretDetails, toggleEnabled, updateSecretProperties, } from "./actions.js";
+import { deleteSecret, editSecret, loadSecrets, requestBulkCreateSecrets, requestCreateSecret, requestSecretDetails, toggleEnabled, updateSecretProperties, } from "./actions.js";
 import { renderTagRowHtml } from "./templates.js";
 import { state } from "./state.js";
 export function bindEvents() {
     dom.searchInput.addEventListener("input", filterAndDisplay);
     dom.statusFilter.addEventListener("change", onStatusFilterChange);
     dom.createBtn.addEventListener("click", requestCreateSecret);
+    dom.uploadBtn.addEventListener("click", requestBulkCreateSecrets);
     dom.refreshBtn.addEventListener("click", loadSecrets);
     dom.prevBtn.addEventListener("click", previousPage);
     dom.nextBtn.addEventListener("click", nextPage);
@@ -369,6 +370,10 @@ function onWindowMessage(event) {
             break;
         case "secretDeleted":
             showMessage("Secret '" + message.secretName + "' deleted successfully", "success");
+            loadSecrets();
+            break;
+        case "bulkSecretsCreated":
+            showMessage(`Bulk import complete: ${message.created} created, ${message.skipped} skipped`, "success");
             loadSecrets();
             break;
         case "error":

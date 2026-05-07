@@ -9,6 +9,7 @@ import {
   deleteSecret,
   editSecret,
   loadSecrets,
+  requestBulkCreateSecrets,
   requestCreateSecret,
   requestSecretDetails,
   toggleEnabled,
@@ -22,6 +23,7 @@ export function bindEvents(): void {
   dom.searchInput.addEventListener("input", filterAndDisplay);
   dom.statusFilter.addEventListener("change", onStatusFilterChange);
   dom.createBtn.addEventListener("click", requestCreateSecret);
+  dom.uploadBtn.addEventListener("click", requestBulkCreateSecrets);
   dom.refreshBtn.addEventListener("click", loadSecrets);
   dom.prevBtn.addEventListener("click", previousPage);
   dom.nextBtn.addEventListener("click", nextPage);
@@ -382,6 +384,8 @@ function onWindowMessage(event: MessageEvent): void {
     };
     page?: number;
     message?: string;
+    created?: number;
+    skipped?: number;
   };
   switch (message.command) {
     case "secretsLoadProgress": {
@@ -442,6 +446,13 @@ function onWindowMessage(event: MessageEvent): void {
     case "secretDeleted":
       showMessage(
         "Secret '" + message.secretName + "' deleted successfully",
+        "success",
+      );
+      loadSecrets();
+      break;
+    case "bulkSecretsCreated":
+      showMessage(
+        `Bulk import complete: ${message.created} created, ${message.skipped} skipped`,
         "success",
       );
       loadSecrets();

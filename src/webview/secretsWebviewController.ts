@@ -9,6 +9,7 @@ interface WebviewMessage {
   page?: number;
   pageSize?: number;
   enabled?: boolean;
+  secrets?: Record<string, string>;
   properties?: {
     notBefore?: string | null;
     expiresOn?: string | null;
@@ -72,6 +73,9 @@ export class SecretsWebviewController {
         break;
       case "requestCreateSecret":
         await this.handleCreateSecret(panel, vaultUrl);
+        break;
+      case "requestBulkCreateSecrets":
+        await this.handleBulkCreateSecrets(panel, vaultUrl);
         break;
       case "requestUpdateSecretProperties":
         await this.handleUpdateSecretProperties(panel, vaultUrl, message);
@@ -294,6 +298,88 @@ export class SecretsWebviewController {
       );
     } catch (error) {
       this.postError(panel, error, "Failed to create secret");
+    }
+  }
+
+  private async handleBulkCreateSecrets(
+    panel: vscode.WebviewPanel,
+    vaultUrl: string,
+  ): Promise<void> {
+    try {
+      const uris = await vscode.window.showOpenDialog({
+        canSelectMany: false,
+        canSelectFolders: false,
+        filters: { "JSON files": ["json"] },
+        title: "Select JSON file with key:value pairs",
+      });
+      if (!uris || uris.length === 0) {
+        return;
+      }
+
+      const fileBytes = await vscode.workspace.fs.readFile(uris[0]);
+      const text = Buffer.from(fileBytes).toString("utf-8");
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        this.postError(
+          panel,
+          new Error("File is not valid JSON"),
+          "Bulk import failed",
+        );
+        return;
+      }
+
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        this.postError(
+          panel,
+          new Error("JSON must be a flat object with string key:value pairs"),
+          "Bulk import failed",
+        );
+        return;
+      }
+
+      const entries = Object.entries(parsed as Record<string, unknown>);
+      const invalid = entries.find(([, v]) => typeof v !== "string");
+      if (invalid) {
+        this.postError(
+          panel,
+          new Error(`Value for key "${invalid[0]}" is not a string`),
+          "Bulk import failed",
+        );
+        return;
+      }
+
+      let created = 0;
+      let skipped = 0;
+      for (const [name, value] of entries as [string, string][]) {
+        if (!name.trim()) {
+          skipped++;
+          continue;
+        }
+        try {
+          await this.keyVaultManager.updateSecret(vaultUrl, name, value);
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+
+      panel.webview.postMessage({
+        command: "bulkSecretsCreated",
+        created,
+        skipped,
+      });
+      vscode.window.showInformationMessage(
+        `Bulk import: ${created} secret(s) created/updated, ${skipped} skipped`,
+      );
+    } catch (error) {
+      this.postError(panel, error, "Bulk import failed");
     }
   }
 

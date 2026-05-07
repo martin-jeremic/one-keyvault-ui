@@ -46,6 +46,7 @@ export interface DomRefs {
   searchInput: HTMLInputElement;
   statusFilter: HTMLSelectElement;
   createBtn: HTMLButtonElement;
+  uploadBtn: HTMLButtonElement;
   refreshBtn: HTMLButtonElement;
   prevBtn: HTMLButtonElement;
   nextBtn: HTMLButtonElement;
