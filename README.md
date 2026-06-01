@@ -13,6 +13,7 @@ Azure Key Vault explorer extension for VS Code with inline secret editing capabi
 - ✏️ **Inline secret editing** - Edit secret values directly
 - 🗑️ **Delete secrets** - Remove secrets from the vault
 - 👁️ **Toggle secret visibility** - Reveal/hide secret values for security
+- 📤 **Bulk import secrets** - Upload a JSON file to create multiple secrets at once
 
 ## Usage
 
@@ -76,6 +77,26 @@ Example:
 - Secrets are displayed 10 per page by default
 - Use the **Previous** and **Next** buttons to navigate
 - The page indicator shows current page and total secret count
+
+### Bulk Importing Secrets
+
+1. In the secrets view, click the **"Upload JSON"** button in the toolbar
+2. Select a `.json` file from your local machine
+3. The file must be a flat JSON object with string key:value pairs — each key becomes the secret name and each value becomes the secret value
+4. After upload, a summary shows how many secrets were created/updated and how many were skipped
+5. The secrets list refreshes automatically
+
+Example JSON file format:
+
+```json
+{
+  "db-connection-string": "Server=myserver.database.windows.net;...",
+  "api-key-openai": "sk-proj-abc123...",
+  "jwt-signing-secret": "my-super-secret-key"
+}
+```
+
+> **Note:** If a secret with the same name already exists it will be **updated** with the new value.
 
 ### Removing a Key Vault
 
@@ -232,14 +253,12 @@ These are typically available with the "Key Vault Administrator" or "Key Vault S
 - Currently supports Azure Key Vault's Secrets only (not Keys or Certificates)
 - Maximum 10 secrets per page (configurable in future versions)
 - Real-time sync not yet implemented - refresh manually if changes are made outside the extension
-- Bulk operations not yet supported
-
 ## Future Enhancements
 
 Planned features for future versions:
 
 - [ ] Support for Azure Key Vault Keys and Certificates
-- [ ] Bulk operations (delete, edit multiple secrets)
+- [ ] Bulk delete / edit multiple secrets
 - [ ] Real-time secret sync across sessions
 - [ ] Secret versioning and history
 - [ ] Custom field mapping and tagging
