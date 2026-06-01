@@ -20,6 +20,7 @@ export const dom: DomRefs = {
   searchInput: document.getElementById("searchInput") as HTMLInputElement,
   statusFilter: document.getElementById("statusFilter") as HTMLSelectElement,
   createBtn: document.getElementById("createBtn") as HTMLButtonElement,
+  uploadBtn: document.getElementById("uploadBtn") as HTMLButtonElement,
   refreshBtn: document.getElementById("refreshBtn") as HTMLButtonElement,
   prevBtn: document.getElementById("prevBtn") as HTMLButtonElement,
   nextBtn: document.getElementById("nextBtn") as HTMLButtonElement,

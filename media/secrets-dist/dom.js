@@ -10,6 +10,7 @@ export const dom = {
     searchInput: document.getElementById("searchInput"),
     statusFilter: document.getElementById("statusFilter"),
     createBtn: document.getElementById("createBtn"),
+    uploadBtn: document.getElementById("uploadBtn"),
     refreshBtn: document.getElementById("refreshBtn"),
     prevBtn: document.getElementById("prevBtn"),
     nextBtn: document.getElementById("nextBtn"),
