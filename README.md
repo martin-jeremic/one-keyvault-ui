@@ -253,6 +253,7 @@ These are typically available with the "Key Vault Administrator" or "Key Vault S
 - Currently supports Azure Key Vault's Secrets only (not Keys or Certificates)
 - Maximum 10 secrets per page (configurable in future versions)
 - Real-time sync not yet implemented - refresh manually if changes are made outside the extension
+
 ## Future Enhancements
 
 Planned features for future versions:
