@@ -3,6 +3,7 @@ import {
   filterAndDisplay,
   showLoading,
   showMessage,
+  updateSelectionUI,
   updateSortUI,
 } from "./render.js";
 import {
@@ -14,6 +15,7 @@ import {
   requestSecretDetails,
   toggleEnabled,
   updateSecretProperties,
+  downloadSelectedSecrets,
 } from "./actions.js";
 import { renderTagRowHtml } from "./templates.js";
 import { state } from "./state.js";
@@ -24,11 +26,13 @@ export function bindEvents(): void {
   dom.statusFilter.addEventListener("change", onStatusFilterChange);
   dom.createBtn.addEventListener("click", requestCreateSecret);
   dom.uploadBtn.addEventListener("click", requestBulkCreateSecrets);
+  dom.downloadBtn.addEventListener("click", onDownloadClick);
   dom.refreshBtn.addEventListener("click", loadSecrets);
   dom.prevBtn.addEventListener("click", previousPage);
   dom.nextBtn.addEventListener("click", nextPage);
   dom.secretsTable.addEventListener("click", onTableClick);
   dom.secretsTable.addEventListener("change", onTableChange);
+  dom.selectAllCheckbox.addEventListener("change", onSelectAllChange);
 
   document.querySelectorAll("th.sortable").forEach((th) => {
     th.addEventListener("click", () => onSortHeaderClick(th));
@@ -113,6 +117,21 @@ function onTableChange(event: Event): void {
   const target = event.target as HTMLElement | null;
   if (!target) return;
 
+  const action = target.getAttribute("data-action");
+  if (action === "selectSecret") {
+    const encodedName = target.getAttribute("data-secret-name");
+    if (!encodedName) return;
+    const secretName = decodeURIComponent(encodedName);
+    const checkbox = target as HTMLInputElement;
+    if (checkbox.checked) {
+      state.selectedSecretNames.add(secretName);
+    } else {
+      state.selectedSecretNames.delete(secretName);
+    }
+    updateSelectionUI();
+    return;
+  }
+
   const role = target.getAttribute("data-role");
   const encodedName = target.getAttribute("data-secret-name");
   if (!role || !encodedName) return;
@@ -129,6 +148,30 @@ function onTableChange(event: Event): void {
   } else if (role === "tagKey" || role === "tagValue") {
     updateTags(secretName);
   }
+}
+
+function onSelectAllChange(): void {
+  const checked = dom.selectAllCheckbox.checked;
+  const visibleCheckboxes = dom.secretsTable.querySelectorAll<HTMLInputElement>(
+    ".secret-select-checkbox",
+  );
+  visibleCheckboxes.forEach((cb) => {
+    const encodedName = cb.getAttribute("data-secret-name");
+    if (!encodedName) return;
+    const secretName = decodeURIComponent(encodedName);
+    cb.checked = checked;
+    if (checked) {
+      state.selectedSecretNames.add(secretName);
+    } else {
+      state.selectedSecretNames.delete(secretName);
+    }
+  });
+  updateSelectionUI();
+}
+
+function onDownloadClick(): void {
+  if (state.selectedSecretNames.size === 0) return;
+  downloadSelectedSecrets(state.selectedSecretNames);
 }
 
 function isActionAllowedForSecret(secretName: string, action: string): boolean {

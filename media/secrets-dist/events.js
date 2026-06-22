@@ -1,6 +1,6 @@
 import { dom } from "./dom.js";
-import { filterAndDisplay, showLoading, showMessage, updateSortUI, } from "./render.js";
-import { deleteSecret, editSecret, loadSecrets, requestBulkCreateSecrets, requestCreateSecret, requestSecretDetails, toggleEnabled, updateSecretProperties, } from "./actions.js";
+import { filterAndDisplay, showLoading, showMessage, updateSelectionUI, updateSortUI, } from "./render.js";
+import { deleteSecret, editSecret, loadSecrets, requestBulkCreateSecrets, requestCreateSecret, requestSecretDetails, toggleEnabled, updateSecretProperties, downloadSelectedSecrets, } from "./actions.js";
 import { renderTagRowHtml } from "./templates.js";
 import { state } from "./state.js";
 export function bindEvents() {
@@ -8,11 +8,13 @@ export function bindEvents() {
     dom.statusFilter.addEventListener("change", onStatusFilterChange);
     dom.createBtn.addEventListener("click", requestCreateSecret);
     dom.uploadBtn.addEventListener("click", requestBulkCreateSecrets);
+    dom.downloadBtn.addEventListener("click", onDownloadClick);
     dom.refreshBtn.addEventListener("click", loadSecrets);
     dom.prevBtn.addEventListener("click", previousPage);
     dom.nextBtn.addEventListener("click", nextPage);
     dom.secretsTable.addEventListener("click", onTableClick);
     dom.secretsTable.addEventListener("change", onTableChange);
+    dom.selectAllCheckbox.addEventListener("change", onSelectAllChange);
     document.querySelectorAll("th.sortable").forEach((th) => {
         th.addEventListener("click", () => onSortHeaderClick(th));
     });
@@ -92,6 +94,22 @@ function onTableChange(event) {
     const target = event.target;
     if (!target)
         return;
+    const action = target.getAttribute("data-action");
+    if (action === "selectSecret") {
+        const encodedName = target.getAttribute("data-secret-name");
+        if (!encodedName)
+            return;
+        const secretName = decodeURIComponent(encodedName);
+        const checkbox = target;
+        if (checkbox.checked) {
+            state.selectedSecretNames.add(secretName);
+        }
+        else {
+            state.selectedSecretNames.delete(secretName);
+        }
+        updateSelectionUI();
+        return;
+    }
     const role = target.getAttribute("data-role");
     const encodedName = target.getAttribute("data-secret-name");
     if (!role || !encodedName)
@@ -110,6 +128,29 @@ function onTableChange(event) {
     else if (role === "tagKey" || role === "tagValue") {
         updateTags(secretName);
     }
+}
+function onSelectAllChange() {
+    const checked = dom.selectAllCheckbox.checked;
+    const visibleCheckboxes = dom.secretsTable.querySelectorAll(".secret-select-checkbox");
+    visibleCheckboxes.forEach((cb) => {
+        const encodedName = cb.getAttribute("data-secret-name");
+        if (!encodedName)
+            return;
+        const secretName = decodeURIComponent(encodedName);
+        cb.checked = checked;
+        if (checked) {
+            state.selectedSecretNames.add(secretName);
+        }
+        else {
+            state.selectedSecretNames.delete(secretName);
+        }
+    });
+    updateSelectionUI();
+}
+function onDownloadClick() {
+    if (state.selectedSecretNames.size === 0)
+        return;
+    downloadSelectedSecrets(state.selectedSecretNames);
 }
 function isActionAllowedForSecret(secretName, action) {
     const secret = state.allSecrets.find((s) => s.name === secretName);

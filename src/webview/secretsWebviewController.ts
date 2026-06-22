@@ -10,6 +10,7 @@ interface WebviewMessage {
   pageSize?: number;
   enabled?: boolean;
   secrets?: Record<string, string>;
+  secretsData?: Record<string, string>;
   properties?: {
     notBefore?: string | null;
     expiresOn?: string | null;
@@ -85,6 +86,9 @@ export class SecretsWebviewController {
         break;
       case "deleteSecret":
         await this.handleDeleteSecret(panel, vaultUrl, message);
+        break;
+      case "downloadSecrets":
+        await this.handleDownloadSecrets(message);
         break;
       default:
         break;
@@ -451,6 +455,22 @@ export class SecretsWebviewController {
     } catch (error) {
       this.postError(panel, error, "Failed to delete secret");
     }
+  }
+
+  private async handleDownloadSecrets(message: WebviewMessage): Promise<void> {
+    if (!message.secretsData) return;
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file("secrets.json"),
+      filters: { JSON: ["json"] },
+      saveLabel: "Download",
+    });
+    if (!uri) return;
+    const content = Buffer.from(
+      JSON.stringify(message.secretsData, null, 2),
+      "utf8",
+    );
+    await vscode.workspace.fs.writeFile(uri, content);
+    vscode.window.showInformationMessage(`Secrets saved to ${uri.fsPath}`);
   }
 
   private parseDate(value?: string | null): Date | null | undefined {

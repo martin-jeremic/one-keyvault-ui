@@ -59,6 +59,7 @@ export function renderSecretRow(secret) {
         enabledValue: secret.enabled ? "true" : "false",
         createdDate,
         updatedDate,
+        checkedAttr: state.selectedSecretNames.has(secret.name) ? "checked" : "",
     });
     fragment.appendChild(row);
     fragment.appendChild(renderDetailsRow(secret, isExpanded));
@@ -70,6 +71,7 @@ export function displaySecrets(secrets) {
         dom.emptyContainer.style.display =
             state.allSecrets.length === 0 ? "block" : "none";
         dom.tableContainer.style.display = "none";
+        updateSelectionUI();
         return;
     }
     dom.secretsTable.innerHTML = "";
@@ -79,6 +81,29 @@ export function displaySecrets(secrets) {
     showLoading(false);
     dom.emptyContainer.style.display = "none";
     dom.tableContainer.style.display = "block";
+    updateSelectionUI();
+}
+export function updateSelectionUI() {
+    const count = state.selectedSecretNames.size;
+    // Update download button
+    dom.downloadBtn.disabled = count === 0;
+    // Update selection bar
+    if (count > 0) {
+        dom.selectionBar.style.display = "flex";
+        dom.selectionCount.textContent =
+            count === 1 ? "1 secret selected" : `${count} secrets selected`;
+    }
+    else {
+        dom.selectionBar.style.display = "none";
+    }
+    // Update select-all checkbox state
+    const visibleCheckboxes = dom.secretsTable.querySelectorAll(".secret-select-checkbox");
+    const visibleCount = visibleCheckboxes.length;
+    const checkedCount = Array.from(visibleCheckboxes).filter((cb) => cb.checked).length;
+    dom.selectAllCheckbox.checked =
+        visibleCount > 0 && checkedCount === visibleCount;
+    dom.selectAllCheckbox.indeterminate =
+        checkedCount > 0 && checkedCount < visibleCount;
 }
 export function filterAndDisplay() {
     const searchTerm = dom.searchInput.value.toLowerCase();

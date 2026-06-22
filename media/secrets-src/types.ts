@@ -32,6 +32,7 @@ export interface State {
   expandedSecretName: string | null;
   editsBySecretName: Record<string, Draft>;
   vaultUrl: string;
+  selectedSecretNames: Set<string>;
 }
 
 export interface DomRefs {
@@ -48,11 +49,15 @@ export interface DomRefs {
   createBtn: HTMLButtonElement;
   uploadBtn: HTMLButtonElement;
   refreshBtn: HTMLButtonElement;
+  downloadBtn: HTMLButtonElement;
   prevBtn: HTMLButtonElement;
   nextBtn: HTMLButtonElement;
   pageInfo: HTMLElement;
   totalInfo: HTMLElement;
   messageContainer: HTMLElement;
+  selectAllCheckbox: HTMLInputElement;
+  selectionBar: HTMLElement;
+  selectionCount: HTMLElement;
 }
 
 export interface WebviewState {
@@ -86,6 +91,7 @@ export interface TemplateRowData {
   enabledValue: string;
   createdDate: string;
   updatedDate: string;
+  checkedAttr: string;
 }
 
 export interface TemplateDetailsData {

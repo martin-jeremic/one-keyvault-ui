@@ -37,6 +37,7 @@ export function renderSecretRowHtml(data) {
         enabledValue: data.enabledValue,
         createdDate: data.createdDate,
         updatedDate: data.updatedDate,
+        checkedAttr: data.checkedAttr,
     });
 }
 export function renderDetailsRowHtml(data) {
