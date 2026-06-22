@@ -14,6 +14,7 @@ Azure Key Vault explorer extension for VS Code with inline secret editing capabi
 - 🗑️ **Delete secrets** - Remove secrets from the vault
 - 👁️ **Toggle secret visibility** - Reveal/hide secret values for security
 - 📤 **Bulk import secrets** - Upload a JSON file to create multiple secrets at once
+- 📥 **Bulk export secrets** - Select multiple secrets and download them as a JSON file
 
 ## Usage
 
@@ -77,6 +78,27 @@ Example:
 - Secrets are displayed 10 per page by default
 - Use the **Previous** and **Next** buttons to navigate
 - The page indicator shows current page and total secret count
+
+### Downloading / Exporting Secrets
+
+1. In the secrets view, check the checkbox next to each secret you want to export
+2. Use the **Select All** checkbox in the table header to select all secrets on the current page
+3. A selection bar appears showing how many secrets are selected
+4. Click the **"Download Selected"** button in the toolbar
+5. Choose a save location in the file dialog — the file is saved as a `.json` file
+6. The exported file uses the same flat JSON format accepted by the Upload JSON feature
+
+Example exported file:
+
+```json
+{
+  "db-connection-string": "Server=myserver.database.windows.net;...",
+  "api-key-openai": "sk-proj-abc123...",
+  "jwt-signing-secret": "my-super-secret-key"
+}
+```
+
+> **Note:** Only secrets whose values have been revealed (by clicking the eye icon 👁️) will have their actual value in the export. Secrets that are still masked will export an empty string for that entry — reveal values first if you need them included.
 
 ### Bulk Importing Secrets
 
@@ -263,7 +285,7 @@ Planned features for future versions:
 - [ ] Real-time secret sync across sessions
 - [ ] Secret versioning and history
 - [ ] Custom field mapping and tagging
-- [ ] Export/Import functionality
+- [x] Export/Import functionality — select and download secrets as JSON
 - [ ] Scheduled secret rotation alerts
 - [ ] Integration with GitHub Secrets
 
