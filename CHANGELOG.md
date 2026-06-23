@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.1.0...v1.2.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* update pipeline versions ([09e7508](https://github.com/martin-jeremic/one-keyvault-ui/commit/09e7508060b14004011d0ef359785523d0626204))
+
+
+### Features
+
+* implement muliple secret download as json ([a7f8080](https://github.com/martin-jeremic/one-keyvault-ui/commit/a7f80806aebbee9a35b3ccc61bcd2ac4df6d3e42))
+
 # [1.1.0](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.3...v1.1.0) (2026-06-01)
 
 
