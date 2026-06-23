@@ -1,3 +1,11 @@
+# [1.1.0](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.3...v1.1.0) (2026-06-01)
+
+
+### Features
+
+* implementation of bulk secret upload ([ac2f7ae](https://github.com/martin-jeremic/one-keyvault-ui/commit/ac2f7ae33b86b78b38bbd9e61321e75292845daf))
+* implemet batch create ([b2ffd0f](https://github.com/martin-jeremic/one-keyvault-ui/commit/b2ffd0f2cdee87f3ef1edd9cb205c170dd33e7c9))
+
 ## [1.0.3](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.0.2...v1.0.3) (2026-03-10)
 
 
