@@ -55,6 +55,7 @@ export function renderSecretRowHtml(data: TemplateRowData): string {
     enabledValue: data.enabledValue,
     createdDate: data.createdDate,
     updatedDate: data.updatedDate,
+    checkedAttr: data.checkedAttr,
   });
 }
 

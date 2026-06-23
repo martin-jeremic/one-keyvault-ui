@@ -51,3 +51,14 @@ export function requestBulkCreateSecrets() {
         command: "requestBulkCreateSecrets",
     });
 }
+export function downloadSelectedSecrets(selectedNames) {
+    const secrets = state.allSecrets.filter((s) => selectedNames.has(s.name));
+    const json = {};
+    for (const s of secrets) {
+        json[s.name] = s.value;
+    }
+    vscode.postMessage({
+        command: "downloadSecrets",
+        secretsData: json,
+    });
+}

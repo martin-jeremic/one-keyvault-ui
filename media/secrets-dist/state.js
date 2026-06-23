@@ -10,4 +10,5 @@ export const state = {
     expandedSecretName: null,
     editsBySecretName: {},
     vaultUrl: initial.vaultUrl || "",
+    selectedSecretNames: new Set(),
 };

@@ -22,9 +22,15 @@ export const dom: DomRefs = {
   createBtn: document.getElementById("createBtn") as HTMLButtonElement,
   uploadBtn: document.getElementById("uploadBtn") as HTMLButtonElement,
   refreshBtn: document.getElementById("refreshBtn") as HTMLButtonElement,
+  downloadBtn: document.getElementById("downloadBtn") as HTMLButtonElement,
   prevBtn: document.getElementById("prevBtn") as HTMLButtonElement,
   nextBtn: document.getElementById("nextBtn") as HTMLButtonElement,
   pageInfo: document.getElementById("pageInfo") as HTMLElement,
   totalInfo: document.getElementById("totalInfo") as HTMLElement,
   messageContainer: document.getElementById("messageContainer") as HTMLElement,
+  selectAllCheckbox: document.getElementById(
+    "selectAllCheckbox",
+  ) as HTMLInputElement,
+  selectionBar: document.getElementById("selectionBar") as HTMLElement,
+  selectionCount: document.getElementById("selectionCount") as HTMLElement,
 };

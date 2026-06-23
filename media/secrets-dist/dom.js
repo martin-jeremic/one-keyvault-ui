@@ -12,9 +12,13 @@ export const dom = {
     createBtn: document.getElementById("createBtn"),
     uploadBtn: document.getElementById("uploadBtn"),
     refreshBtn: document.getElementById("refreshBtn"),
+    downloadBtn: document.getElementById("downloadBtn"),
     prevBtn: document.getElementById("prevBtn"),
     nextBtn: document.getElementById("nextBtn"),
     pageInfo: document.getElementById("pageInfo"),
     totalInfo: document.getElementById("totalInfo"),
     messageContainer: document.getElementById("messageContainer"),
+    selectAllCheckbox: document.getElementById("selectAllCheckbox"),
+    selectionBar: document.getElementById("selectionBar"),
+    selectionCount: document.getElementById("selectionCount"),
 };

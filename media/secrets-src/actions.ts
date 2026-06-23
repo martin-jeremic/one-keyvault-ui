@@ -64,3 +64,15 @@ export function requestBulkCreateSecrets(): void {
     command: "requestBulkCreateSecrets",
   });
 }
+
+export function downloadSelectedSecrets(selectedNames: Set<string>): void {
+  const secrets = state.allSecrets.filter((s) => selectedNames.has(s.name));
+  const json: Record<string, string> = {};
+  for (const s of secrets) {
+    json[s.name] = s.value;
+  }
+  vscode.postMessage({
+    command: "downloadSecrets",
+    secretsData: json,
+  });
+}
