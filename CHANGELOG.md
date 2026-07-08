@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.2.0...v1.2.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* removed escape chars when downloading json secrets ([68c31b2](https://github.com/martin-jeremic/one-keyvault-ui/commit/68c31b20a95277ca0c5e6a918eb2ca062bfabdfb))
+
 # [1.2.0](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.1.0...v1.2.0) (2026-06-23)
 
 
