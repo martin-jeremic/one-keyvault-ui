@@ -465,10 +465,15 @@ export class SecretsWebviewController {
       saveLabel: "Download",
     });
     if (!uri) return;
-    const content = Buffer.from(
-      JSON.stringify(message.secretsData, null, 2),
-      "utf8",
-    );
+    const output: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(message.secretsData)) {
+      try {
+        output[key] = JSON.parse(value);
+      } catch {
+        output[key] = value;
+      }
+    }
+    const content = Buffer.from(JSON.stringify(output, null, 2), "utf8");
     await vscode.workspace.fs.writeFile(uri, content);
     vscode.window.showInformationMessage(`Secrets saved to ${uri.fsPath}`);
   }
