@@ -350,7 +350,9 @@ export class SecretsWebviewController {
 
       const entries = Object.entries(parsed as Record<string, unknown>);
       const invalid = entries.find(
-        ([, v]) => typeof v !== "string" && (typeof v !== "object" || v === null || Array.isArray(v)),
+        ([, v]) =>
+          typeof v !== "string" &&
+          (typeof v !== "object" || v === null || Array.isArray(v)),
       );
       if (invalid) {
         this.postError(
