@@ -349,19 +349,27 @@ export class SecretsWebviewController {
       }
 
       const entries = Object.entries(parsed as Record<string, unknown>);
-      const invalid = entries.find(([, v]) => typeof v !== "string");
+      const invalid = entries.find(
+        ([, v]) => typeof v !== "string" && (typeof v !== "object" || v === null || Array.isArray(v)),
+      );
       if (invalid) {
         this.postError(
           panel,
-          new Error(`Value for key "${invalid[0]}" is not a string`),
+          new Error(`Value for key "${invalid[0]}" is not a string or object`),
           "Bulk import failed",
         );
         return;
       }
 
+      // Normalize values: objects are serialized back to JSON strings (round-trip from export)
+      const normalizedEntries: [string, string][] = entries.map(([k, v]) => [
+        k,
+        typeof v === "object" ? JSON.stringify(v) : (v as string),
+      ]);
+
       let created = 0;
       let skipped = 0;
-      for (const [name, value] of entries as [string, string][]) {
+      for (const [name, value] of normalizedEntries) {
         if (!name.trim()) {
           skipped++;
           continue;
