@@ -1,3 +1,11 @@
+## [1.2.2](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.2.1...v1.2.2) (2026-07-09)
+
+
+### Bug Fixes
+
+* fix json upload bug when file contains nested objects ([22d862d](https://github.com/martin-jeremic/one-keyvault-ui/commit/22d862df32b08bd83e28c592b81dab80949d0834))
+* fix upload of json when json contain nested objects ([100a8b0](https://github.com/martin-jeremic/one-keyvault-ui/commit/100a8b0754ff74f7ef979ac0031449820ff09d01))
+
 ## [1.2.1](https://github.com/martin-jeremic/one-keyvault-ui/compare/v1.2.0...v1.2.1) (2026-07-08)
 
 
